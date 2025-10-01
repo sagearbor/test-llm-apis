@@ -2,8 +2,13 @@ import express from 'express';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 import session from 'express-session';
+import path from 'path';
+import fs from 'fs/promises';
 import { modelConfig } from './config.js';
 import { getAuthUrl, getTokenFromCode, requireAuth, isOAuthEnabled } from './auth.js';
+import { upload, rateLimitUpload, getUploadDir } from './upload-middleware.js';
+import { processFile } from './file-processor.js';
+import { startCleanupService, stopCleanupService, cleanupSession } from './cleanup-service.js';
 
 dotenv.config();
 
@@ -63,7 +68,14 @@ app.get('/auth/redirect', async (req, res) => {
   }
 });
 
-app.get('/logout', (req, res) => {
+app.get('/logout', async (req, res) => {
+  const sessionId = req.session?.id;
+
+  // Clean up user's uploaded files
+  if (sessionId) {
+    await cleanupSession(sessionId);
+  }
+
   req.session.destroy();
   res.redirect('/');
 });
@@ -138,8 +150,84 @@ app.get('/health', requireAuth, async (req, res) => {
   res.json(results);
 });
 
+// File upload endpoint
+app.post('/api/upload', requireAuth, rateLimitUpload, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Process the file to extract text
+    const { text, metadata } = await processFile(req.file.path, req.fileMetadata.originalName);
+
+    // Store file metadata in session for retrieval during chat
+    if (!req.session.uploadedFiles) {
+      req.session.uploadedFiles = {};
+    }
+
+    const fileId = path.basename(req.file.path);
+    req.session.uploadedFiles[fileId] = {
+      id: fileId,
+      originalName: req.fileMetadata.originalName,
+      path: req.file.path,
+      size: req.file.size,
+      uploadedAt: req.fileMetadata.uploadedAt,
+      text: text,
+      metadata: metadata
+    };
+
+    res.json({
+      fileId: fileId,
+      filename: req.fileMetadata.originalName,
+      size: req.file.size,
+      uploadedAt: req.fileMetadata.uploadedAt,
+      metadata: metadata
+    });
+
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// List uploaded files
+app.get('/api/files', requireAuth, (req, res) => {
+  const files = req.session.uploadedFiles || {};
+  const fileList = Object.values(files).map(f => ({
+    fileId: f.id,
+    filename: f.originalName,
+    size: f.size,
+    uploadedAt: f.uploadedAt
+  }));
+  res.json(fileList);
+});
+
+// Delete uploaded file
+app.delete('/api/files/:fileId', requireAuth, async (req, res) => {
+  try {
+    const { fileId } = req.params;
+    const files = req.session.uploadedFiles || {};
+
+    if (!files[fileId]) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Delete file from disk
+    await fs.unlink(files[fileId].path);
+
+    // Remove from session
+    delete files[fileId];
+
+    res.json({ message: 'File deleted successfully' });
+
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/chat', requireAuth, async (req, res) => {
-  const { prompt, model } = req.body;
+  const { prompt, model, fileId } = req.body;
 
   const deploymentName = deploymentMap[model];
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
@@ -150,6 +238,22 @@ app.post('/chat', requireAuth, async (req, res) => {
     return res.status(500).json({
       answer: `Configuration error for model ${model}. Check that AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, and ${model.toUpperCase()}_DEPLOYMENT_NAME are set in .env`
     });
+  }
+
+  // Build the final prompt - include file content if fileId provided
+  let finalPrompt = prompt;
+
+  if (fileId) {
+    const files = req.session.uploadedFiles || {};
+    const fileData = files[fileId];
+
+    if (fileData) {
+      // Prepend file content to user prompt
+      finalPrompt = `Below is the content of the uploaded file "${fileData.originalName}":\n\n${fileData.text}\n\n---\n\nUser question: ${prompt}`;
+      console.log(`Including file in context: ${fileData.originalName} (${fileData.text.length} chars)`);
+    } else {
+      console.warn(`File ID ${fileId} not found in session`);
+    }
   }
 
   // Determine API endpoint & format based on model type
@@ -166,13 +270,13 @@ app.post('/chat', requireAuth, async (req, res) => {
   if (isCodexModel) {
     // Responses API body format for codex
     requestBody = {
-      input: prompt,
+      input: finalPrompt,
       max_output_tokens: 800
     };
   } else {
     // Standard Chat Completions format for other models
     requestBody = {
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content: finalPrompt }],
       max_completion_tokens: 800
     };
   }
@@ -214,6 +318,22 @@ app.post('/chat', requireAuth, async (req, res) => {
     console.error('Fetch error:', error);
     res.status(500).json({ answer: `Azure OpenAI Error: ${error.message}` });
   }
+});
+
+// Start cleanup service
+startCleanupService();
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, cleaning up...');
+  stopCleanupService();
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received, cleaning up...');
+  stopCleanupService();
+  process.exit(0);
 });
 
 const PORT = process.env.PORT || 3000;
