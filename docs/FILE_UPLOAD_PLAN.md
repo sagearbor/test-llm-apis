@@ -20,9 +20,78 @@ Add ability for users to upload files (documents, code, images) and ask the LLM 
 ### ✅ Security Mitigations:
 
 #### 1. File Type Restrictions
-- **Whitelist only**: .txt, .md, .pdf, .docx, .py, .js, .java, .cpp, .csv, .json, .xml
-- **Block**: .exe, .sh, .bat, .cmd, .ps1, .dll, .so, .app
-- **Validate MIME type** (not just extension)
+
+**Whitelist (Comprehensive for developers, data managers, and managers):**
+
+**Documents:**
+- .txt, .md, .rtf - Plain text
+- .pdf - PDF documents
+- .docx, .doc - Microsoft Word
+- .xlsx, .xls - Microsoft Excel
+- .pptx, .ppt - Microsoft PowerPoint
+- .odt, .ods, .odp - OpenOffice/LibreOffice
+- .csv, .tsv - Data files
+
+**Code & Scripts:**
+- .py - Python
+- .js, .ts - JavaScript/TypeScript
+- .java, .kt - Java/Kotlin
+- .cpp, .c, .h - C/C++
+- .cs - C#
+- .go - Go
+- .rs - Rust
+- .rb - Ruby
+- .php - PHP
+- .swift - Swift
+- .r, .R - R
+- .sql - SQL
+- .scala - Scala
+- .sh - Shell scripts (READ ONLY - never execute)
+- .ps1 - PowerShell (READ ONLY - never execute)
+
+**Data & Config:**
+- .json, .jsonl - JSON data
+- .xml - XML data
+- .yaml, .yml - YAML config
+- .toml - TOML config
+- .ini, .cfg - Config files
+- .env.example - Example env files (NOT .env)
+
+**Data Science & BI:**
+- .ipynb - Jupyter notebooks
+- .pbix - Power BI files (ZIP-based, extract .json)
+- .rmd - R Markdown
+- .parquet - Parquet data files (extract metadata)
+
+**Web:**
+- .html, .htm - HTML
+- .css, .scss, .sass - Stylesheets
+- .jsx, .tsx - React
+- .vue - Vue.js
+- .svelte - Svelte
+
+**Markup & Documentation:**
+- .tex - LaTeX
+- .rst - reStructuredText
+- .adoc - AsciiDoc
+
+**BLOCKED (Security Risk):**
+- .exe, .dll, .so, .dylib - Executables/libraries
+- .bat, .cmd - Windows batch files (can execute)
+- .app - macOS applications
+- .msi, .deb, .rpm - Installers
+- .jar - Java archives (can execute)
+- .scr, .vbs - Script executables
+- .apk, .ipa - Mobile apps
+- .env - Environment files (secrets)
+
+**Special Handling (ZIP-based formats):**
+- .docx, .xlsx, .pptx - Extract XML content
+- .pbix - Extract data model JSON
+- .ipynb - Parse as JSON
+- .odt, .ods - Extract XML content
+
+**Note**: All files converted to text before sending to LLM. No code execution.
 
 #### 2. File Size Limits
 - **Max file size**: 10MB (configurable)
