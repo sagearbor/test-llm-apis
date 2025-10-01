@@ -33,6 +33,84 @@
       cursor: pointer;
     }
     .refresh-btn:hover { background: #0b7dda; }
+
+    /* File Upload Styles */
+    #fileUploadArea {
+      margin: 20px 0;
+      padding: 20px;
+      border: 2px dashed #ccc;
+      border-radius: 8px;
+      background: #f9f9f9;
+      text-align: center;
+      transition: all 0.3s;
+    }
+    #fileUploadArea.dragover {
+      border-color: #2196F3;
+      background: #e3f2fd;
+    }
+    .file-input-wrapper {
+      margin: 10px 0;
+    }
+    .upload-btn {
+      padding: 10px 20px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .upload-btn:hover { background: #45a049; }
+    #filesList {
+      margin: 15px 0;
+      padding: 10px;
+      background: white;
+      border-radius: 4px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      margin: 5px 0;
+      background: #f5f5f5;
+      border-radius: 4px;
+    }
+    .file-item.selected {
+      background: #e3f2fd;
+      border: 1px solid #2196F3;
+    }
+    .file-name {
+      flex: 1;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .file-size {
+      color: #666;
+      font-size: 12px;
+      margin: 0 10px;
+    }
+    .delete-btn {
+      padding: 4px 8px;
+      background: #f44336;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .delete-btn:hover { background: #da190b; }
+    .file-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #2196F3;
+      color: white;
+      border-radius: 3px;
+      font-size: 11px;
+      margin-left: 5px;
+    }
   </style>
 </head>
 <body>
@@ -57,6 +135,22 @@
     <option value="best_llm_api">Best LLM</option>
   </select>
 
+  <!-- File Upload Area -->
+  <div id="fileUploadArea">
+    <h3>📎 Upload File (Optional)</h3>
+    <p style="color: #666; font-size: 14px;">
+      Upload a file to include it in your question. Supports: PDF, DOCX, code files, ZIP, and more.
+    </p>
+    <div class="file-input-wrapper">
+      <input type="file" id="fileInput" style="display: none;" onchange="uploadFile()" />
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+        Choose File
+      </button>
+      <span style="margin: 0 10px; color: #666;">or drag and drop here</span>
+    </div>
+    <div id="filesList"></div>
+  </div>
+
   <div id="chatbox"></div>
 
   <input type="text" id="userInput" placeholder="Type your question here..." />
@@ -64,6 +158,8 @@
 
   <script>
     let modelMetadata = {};
+    let uploadedFiles = [];
+    let selectedFileId = null;
 
     // Check authentication status
     async function checkAuthStatus() {
@@ -143,14 +239,23 @@
       const userText = input.value.trim();
       if (!userText) return;
 
-      chatbox.innerHTML += `<div class='user'><strong>You:</strong> ${userText}</div>`;
+      // Show which file is attached (if any)
+      const fileBadge = selectedFileId ?
+        `<span class="file-badge">📎 ${uploadedFiles.find(f => f.fileId === selectedFileId)?.filename || 'file'}</span>` : '';
+
+      chatbox.innerHTML += `<div class='user'><strong>You:</strong> ${userText} ${fileBadge}</div>`;
       input.value = '';
 
       try {
+        const body = { prompt: userText, model };
+        if (selectedFileId) {
+          body.fileId = selectedFileId;
+        }
+
         const response = await fetch('/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: userText, model })
+          body: JSON.stringify(body)
         });
         const data = await response.json();
         chatbox.innerHTML += `<div class='bot'><strong>Bot:</strong> ${data.answer}</div>`;
@@ -160,10 +265,138 @@
       }
     }
 
+    // File upload functions
+    async function uploadFile() {
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          alert(`Upload failed: ${error.error}`);
+          return;
+        }
+
+        const data = await response.json();
+        uploadedFiles.push(data);
+        renderFilesList();
+
+        // Auto-select the newly uploaded file
+        selectedFileId = data.fileId;
+        renderFilesList();
+
+        // Clear file input
+        fileInput.value = '';
+
+      } catch (err) {
+        alert(`Upload error: ${err.message}`);
+      }
+    }
+
+    async function deleteFile(fileId) {
+      try {
+        const response = await fetch(`/api/files/${fileId}`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          alert(`Delete failed: ${error.error}`);
+          return;
+        }
+
+        // Remove from local list
+        uploadedFiles = uploadedFiles.filter(f => f.fileId !== fileId);
+        if (selectedFileId === fileId) {
+          selectedFileId = null;
+        }
+        renderFilesList();
+
+      } catch (err) {
+        alert(`Delete error: ${err.message}`);
+      }
+    }
+
+    function selectFile(fileId) {
+      selectedFileId = selectedFileId === fileId ? null : fileId;
+      renderFilesList();
+    }
+
+    function renderFilesList() {
+      const filesList = document.getElementById('filesList');
+
+      if (uploadedFiles.length === 0) {
+        filesList.innerHTML = '<p style="color: #999; font-size: 13px;">No files uploaded</p>';
+        return;
+      }
+
+      let html = '<div style="text-align: left;">';
+      uploadedFiles.forEach(file => {
+        const selected = file.fileId === selectedFileId ? 'selected' : '';
+        const sizeKB = (file.size / 1024).toFixed(1);
+        html += `
+          <div class="file-item ${selected}">
+            <span class="file-name" onclick="selectFile('${file.fileId}')">
+              ${selected ? '✓ ' : ''}${file.filename}
+            </span>
+            <span class="file-size">${sizeKB} KB</span>
+            <button class="delete-btn" onclick="deleteFile('${file.fileId}')">Delete</button>
+          </div>
+        `;
+      });
+      html += '</div>';
+      filesList.innerHTML = html;
+    }
+
+    async function loadUploadedFiles() {
+      try {
+        const response = await fetch('/api/files');
+        if (response.ok) {
+          uploadedFiles = await response.json();
+          renderFilesList();
+        }
+      } catch (err) {
+        console.error('Failed to load files:', err);
+      }
+    }
+
+    // Drag and drop support
+    const fileUploadArea = document.getElementById('fileUploadArea');
+
+    fileUploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      fileUploadArea.classList.add('dragover');
+    });
+
+    fileUploadArea.addEventListener('dragleave', () => {
+      fileUploadArea.classList.remove('dragover');
+    });
+
+    fileUploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      fileUploadArea.classList.remove('dragover');
+
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        document.getElementById('fileInput').files = files;
+        uploadFile();
+      }
+    });
+
     // Load metadata, check auth, and check health on page load
     window.addEventListener('DOMContentLoaded', async () => {
       await checkAuthStatus();
       await loadModelMetadata();
+      await loadUploadedFiles();
       checkHealth();
     });
   </script>
