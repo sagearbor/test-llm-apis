@@ -197,6 +197,7 @@
           <option value="allaround_llm_api">All-Around LLM</option>
           <option value="best_llm_api">Best LLM</option>
         </select>
+        <div id="tokenConfig" style="font-size: 11px; color: #666; margin-top: 8px;"></div>
       </div>
     </div>
 
@@ -468,11 +469,25 @@ Best for: ${metadata.specialties || 'N/A'}`;
       }
     });
 
+    // Load server configuration and display token info
+    async function loadServerConfig() {
+      try {
+        const response = await fetch('/api/config');
+        const config = await response.json();
+
+        const tokenConfig = document.getElementById('tokenConfig');
+        tokenConfig.innerHTML = `Max tokens: ${config.maxCompletionTokens.toLocaleString()} (${config.percentagePerResponse}% per response, ~${config.estimatedChatTurns} chat turns)`;
+      } catch (err) {
+        console.error('Failed to load server config:', err);
+      }
+    }
+
     // Load metadata, check auth, and check health on page load
     window.addEventListener('DOMContentLoaded', async () => {
       await checkAuthStatus();
       await loadModelMetadata();
       await loadUploadedFiles();
+      await loadServerConfig();
       checkHealth();
 
       // Focus input field
