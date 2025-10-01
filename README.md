@@ -8,6 +8,15 @@ A simple web interface for testing multiple Azure OpenAI model deployments with 
 - **Health Monitoring**: Real-time connection status with traffic light indicators (🟢/🔴)
 - **Auto-Detection**: Automatically detects Codex models and uses the appropriate API format
 - **Low-Cost Health Checks**: Minimal token usage for connection testing
+- **OAuth Authentication**: Optional Azure AD integration for secure access
+- **Production Ready**: NGINX configuration and systemd service included
+
+## Deployment Options
+
+- **Local Development**: Quick start guide below
+- **Azure Web App**: See [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md) for Azure Web App deployment
+- **Linux VM/Server**: See [docs/VM_DEPLOYMENT.md](docs/VM_DEPLOYMENT.md) for VM deployment with NGINX and SSL
+- **Security Guide**: See [docs/SECURITY_CHECKLIST.md](docs/SECURITY_CHECKLIST.md) for security best practices
 
 ## Prerequisites
 
