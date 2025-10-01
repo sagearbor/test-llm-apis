@@ -197,7 +197,11 @@
           <option value="allaround_llm_api">All-Around LLM</option>
           <option value="best_llm_api">Best LLM</option>
         </select>
-        <div id="tokenConfig" style="font-size: 11px; color: #666; margin-top: 8px;"></div>
+        <div style="margin-top: 12px;">
+          <label for="tokenSlider" style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 4px;">Response Length:</label>
+          <input type="range" id="tokenSlider" min="1" max="50" value="10" style="width: 100%; margin-bottom: 4px;">
+          <div id="tokenConfig" style="font-size: 11px; color: #666;"></div>
+        </div>
       </div>
     </div>
 
@@ -226,6 +230,7 @@
     let modelMetadata = {};
     let uploadedFiles = [];
     let selectedFileId = null;
+    let maxCompletionTokens = 12800; // Default, will be updated by slider
 
     // Check authentication status
     async function checkAuthStatus() {
@@ -319,7 +324,11 @@ Best for: ${metadata.specialties || 'N/A'}`;
       input.value = '';
 
       try {
-        const body = { prompt: userText, model };
+        const body = {
+          prompt: userText,
+          model,
+          maxTokens: maxCompletionTokens
+        };
         if (selectedFileId) {
           body.fileId = selectedFileId;
         }
@@ -469,14 +478,37 @@ Best for: ${metadata.specialties || 'N/A'}`;
       }
     });
 
-    // Load server configuration and display token info
+    // Update token display based on slider value
+    function updateTokenDisplay(percentage) {
+      const contextWindow = 128 * 1024; // 128K tokens
+      maxCompletionTokens = Math.floor((percentage / 100) * contextWindow);
+      const estimatedChatTurns = Math.floor(contextWindow / (maxCompletionTokens * 2));
+
+      const tokenConfig = document.getElementById('tokenConfig');
+      tokenConfig.innerHTML = `${maxCompletionTokens.toLocaleString()} tokens (${percentage}% per response, ~${estimatedChatTurns} chat turns)`;
+
+      // Save to localStorage
+      localStorage.setItem('maxCompletionTokensPercentage', percentage);
+    }
+
+    // Load server configuration and set up slider
     async function loadServerConfig() {
       try {
-        const response = await fetch('/api/config');
-        const config = await response.json();
+        // Load saved preference or default to 10%
+        const savedPercentage = localStorage.getItem('maxCompletionTokensPercentage');
+        const percentage = savedPercentage ? parseInt(savedPercentage) : 10;
 
-        const tokenConfig = document.getElementById('tokenConfig');
-        tokenConfig.innerHTML = `Max tokens: ${config.maxCompletionTokens.toLocaleString()} (${config.percentagePerResponse}% per response, ~${config.estimatedChatTurns} chat turns)`;
+        // Set slider value
+        const slider = document.getElementById('tokenSlider');
+        slider.value = percentage;
+
+        // Update display
+        updateTokenDisplay(percentage);
+
+        // Add slider event listener
+        slider.addEventListener('input', (e) => {
+          updateTokenDisplay(parseInt(e.target.value));
+        });
       } catch (err) {
         console.error('Failed to load server config:', err);
       }
