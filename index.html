@@ -43,7 +43,48 @@
 
     .model-select-wrapper { margin-top: 15px; }
     .model-select-wrapper label { display: block; margin-bottom: 5px; font-size: 14px; font-weight: bold; }
-    #modelSelect { width: 100%; padding: 8px; font-size: 14px; }
+    #modelSelect {
+      width: 100%;
+      padding: 8px;
+      font-size: 14px;
+      animation: throb 2s ease-in-out 3;
+    }
+    @keyframes throb {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 rgba(33, 150, 243, 0); }
+      50% { transform: scale(1.05); box-shadow: 0 0 10px rgba(33, 150, 243, 0.5); }
+    }
+
+    .info-icon {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      line-height: 14px;
+      text-align: center;
+      border: 1px solid #2196F3;
+      border-radius: 50%;
+      color: #2196F3;
+      font-size: 10px;
+      font-weight: bold;
+      cursor: help;
+      margin-left: 5px;
+      position: relative;
+    }
+    .info-icon:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 20px;
+      top: -5px;
+      background: #333;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      white-space: pre-line;
+      font-size: 11px;
+      font-weight: normal;
+      z-index: 1000;
+      min-width: 250px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
 
     /* File Upload Styles */
     #fileUploadArea {
@@ -173,10 +214,12 @@
     </div>
   </div>
 
-  <div id="chatbox"></div>
+  <div style="margin-bottom: 10px;">
+    <input type="text" id="userInput" placeholder="Type your question here..." style="width: calc(100% - 80px); padding: 10px; font-size: 14px;" />
+    <button onclick="sendMessage()" style="padding: 10px 20px; font-size: 14px;">Send</button>
+  </div>
 
-  <input type="text" id="userInput" placeholder="Type your question here..." />
-  <button onclick="sendMessage()">Send</button>
+  <div id="chatbox"></div>
 
   <script>
     let modelMetadata = {};
@@ -237,10 +280,16 @@
           const displayName = metadata.displayName || modelKey;
           const deploymentName = result.deploymentName || 'Not configured';
 
+          // Build tooltip content
+          const tooltip = `Context: ${metadata.contextWindow || 'N/A'}
+Cost: ${metadata.costPer1M || 'N/A'}
+Multimodal: ${metadata.multimodal ? 'Yes' : 'No'}
+Best for: ${metadata.specialties || 'N/A'}`;
+
           html += `<div class="status-item">
             <div style="display: flex; align-items: center; flex: 1;">
               <span class="status-indicator ${statusClass}"></span>
-              <span class="status-label">${displayName} (${deploymentName})</span>
+              <span class="status-label">${displayName} (${deploymentName})<span class="info-icon" data-tooltip="${tooltip}">i</span></span>
             </div>
             <div style="text-align: right;">
               ${result.message ? `<div class="status-message">${result.message}</div>` : ''}
@@ -420,6 +469,9 @@
       await loadModelMetadata();
       await loadUploadedFiles();
       checkHealth();
+
+      // Focus input field
+      document.getElementById('userInput').focus();
     });
   </script>
 </body>
