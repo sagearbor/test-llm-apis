@@ -244,7 +244,7 @@ app.delete('/api/files/:fileId', requireAuth, async (req, res) => {
 });
 
 app.post('/chat', requireAuth, async (req, res) => {
-  const { prompt, model, fileId } = req.body;
+  const { prompt, model, fileId, maxTokens } = req.body;
 
   const deploymentName = deploymentMap[model];
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
@@ -282,8 +282,8 @@ app.post('/chat', requireAuth, async (req, res) => {
   console.log('Request URL:', url);
   console.log('Deployment Name:', deploymentName);
 
-  // Get max completion tokens from environment (default 12800 = 10% of 128K context)
-  const maxCompletionTokens = parseInt(process.env.MAX_COMPLETION_TOKENS || '12800', 10);
+  // Get max completion tokens from client preference or environment (default 12800 = 10% of 128K context)
+  const maxCompletionTokens = maxTokens || parseInt(process.env.MAX_COMPLETION_TOKENS || '12800', 10);
 
   let requestBody;
 
