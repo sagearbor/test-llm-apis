@@ -1,0 +1,118 @@
+# systemd Service Unit for LLM Test Application
+#
+# Installation:
+#   1. Copy this file to /etc/systemd/system/llm-test.service
+#   2. Update User= to your actual username
+#   3. sudo systemctl daemon-reload
+#   4. sudo systemctl enable llm-test
+#   5. sudo systemctl start llm-test
+#
+# Management:
+#   sudo systemctl start llm-test      # Start the service
+#   sudo systemctl stop llm-test       # Stop the service
+#   sudo systemctl restart llm-test    # Restart the service
+#   sudo systemctl status llm-test     # Check status
+#   sudo systemctl enable llm-test     # Enable auto-start on boot
+#   sudo systemctl disable llm-test    # Disable auto-start
+#
+# Logs:
+#   sudo journalctl -u llm-test -f     # Follow logs
+#   sudo journalctl -u llm-test -n 50  # Last 50 lines
+
+[Unit]
+# Service description
+Description=LLM Test Application - Azure OpenAI Model Testing Interface
+Documentation=https://github.com/sagearbor/test-llm-apis
+
+# Start after network is available
+After=network-online.target
+Wants=network-online.target
+
+# If NGINX is on same server, start after NGINX
+# Uncomment if needed:
+# After=nginx.service
+# Wants=nginx.service
+
+[Service]
+# Service type
+Type=simple
+
+# User and group to run as (IMPORTANT: Update this!)
+# Replace 'your-username' with actual username (run 'whoami' to find out)
+User=your-username
+Group=your-username
+
+# Working directory (where package.json and server.js are located)
+WorkingDirectory=/opt/llm-test-app
+
+# Environment variables
+Environment="NODE_ENV=production"
+Environment="PORT=3000"
+
+# Node.js executable and server script
+ExecStart=/usr/bin/node server.js
+
+# Restart policy
+# always = restart on any exit (crash, killed, clean exit)
+# on-failure = only restart on failures
+Restart=always
+
+# Wait 10 seconds before restarting (prevents rapid restart loops)
+RestartSec=10
+
+# Standard output and error logging
+# Logs will be available via: sudo journalctl -u llm-test
+StandardOutput=journal
+StandardError=journal
+
+# Syslog identifier for easier log filtering
+SyslogIdentifier=llm-test
+
+# Process management
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# Security hardening (optional but recommended)
+# Uncomment these for additional security:
+
+# Prevent privilege escalation
+NoNewPrivileges=true
+
+# Make /usr, /boot, /etc read-only
+# ProtectSystem=strict
+
+# Make /home read-only (except WorkingDirectory)
+# ProtectHome=read-only
+
+# Private /tmp directory
+PrivateTmp=true
+
+# Restrict access to kernel logs
+# ProtectKernelLogs=true
+
+# Prevent loading kernel modules
+# ProtectKernelModules=true
+
+# Hide other processes
+# ProtectProc=invisible
+
+# Read-only access to system directories
+# ReadOnlyPaths=/
+
+# Allow write access only to necessary paths
+# ReadWritePaths=/opt/llm-test-app/logs
+
+# Limit system calls (advanced - test before enabling)
+# SystemCallFilter=@system-service
+# SystemCallFilter=~@privileged @resources
+
+# Network restrictions (allow only IPv4/IPv6)
+# RestrictAddressFamilies=AF_INET AF_INET6
+
+# Prevent modification of control groups
+# ProtectControlGroups=true
+
+[Install]
+# Start on multi-user runlevel (normal system boot)
+WantedBy=multi-user.target
