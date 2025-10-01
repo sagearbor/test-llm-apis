@@ -90,6 +90,20 @@ Add ability for users to upload files (documents, code, images) and ask the LLM 
 - .pbix - Extract data model JSON
 - .ipynb - Parse as JSON
 - .odt, .ods - Extract XML content
+- .zip - Generic ZIP archives (with recursive validation)
+
+**ZIP File Support:**
+- ✅ Allowed: Generic .zip files
+- ✅ Recursive validation: Each file inside ZIP checked against whitelist
+- ✅ Nested ZIPs: Supported up to 2 levels deep
+- ✅ Security limits:
+  * Max uncompressed size: 50MB (prevent zip bombs)
+  * Max files in archive: 100 files
+  * Max nesting depth: 2 levels
+  * Compression ratio check: Reject if >100:1 (zip bomb detection)
+- ✅ Only whitelisted files extracted (others skipped)
+- ⚠️ Blocked files in ZIP: Silently skipped, logged
+- ⚠️ Executable files in ZIP: Rejected, entire ZIP blocked
 
 **Note**: All files converted to text before sending to LLM. No code execution.
 
@@ -272,13 +286,34 @@ npm install sanitize-filename  # Secure filenames
   - [ ] Text file reader (.txt, .md, .json, .xml, .csv)
   - [ ] PDF text extractor (pdf-parse)
   - [ ] DOCX text extractor (mammoth)
-  - [ ] Code file reader (.py, .js, .java, .cpp, etc.)
+  - [ ] Excel reader (xlsx) - values only, no formulas
+  - [ ] PowerPoint extractor (extract text from slides)
+  - [ ] Code file reader (.py, .js, .java, .cpp, .sql, etc.)
+  - [ ] Jupyter notebook parser (.ipynb - extract markdown + code)
   - [ ] Metadata stripper
   - [ ] Content sanitizer (remove suspicious patterns)
-  - [ ] Size limiter for extracted text (max 50K chars)
+  - [ ] Size limiter for extracted text (max 50K chars per file)
+- [ ] Create `zip-processor.js` (Safe ZIP handling)
+  - [ ] Validate ZIP integrity
+  - [ ] Check compression ratio (reject >100:1 - zip bomb)
+  - [ ] Recursively validate each file against whitelist
+  - [ ] Track nesting depth (max 2 levels)
+  - [ ] Count total files (max 100 files)
+  - [ ] Track uncompressed size (max 50MB)
+  - [ ] Extract whitelisted files only
+  - [ ] Log/skip blocked files
+  - [ ] Reject entire ZIP if contains .exe/.dll/etc
+  - [ ] Process nested ZIPs recursively
+  - [ ] Return concatenated text from all valid files
 - [ ] Add file type detection (file-type)
 - [ ] Add filename sanitization
 - [ ] Test with various file types
+- [ ] Test ZIP security:
+  - [ ] Zip bomb detection (42.zip style)
+  - [ ] Nested ZIPs (3+ levels - should reject)
+  - [ ] ZIP with executables (should reject)
+  - [ ] ZIP with 100+ files (should reject)
+  - [ ] Valid ZIP with mixed files (extract whitelisted only)
 
 #### Chat Integration
 - [ ] Modify POST /chat endpoint
