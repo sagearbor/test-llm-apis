@@ -18,28 +18,44 @@ export const modelConfig = {
       displayName: 'Coding LLM',
       description: 'Code generation and programming tasks',
       defaultDeployment: 'gpt-5-mini', // 'gpt-5-codex',
-      envVar: 'CODING_LLM_DEPLOYMENT_NAME'
+      envVar: 'CODING_LLM_DEPLOYMENT_NAME',
+      contextWindow: '128K tokens',
+      costPer1M: '$0.15 input / $0.60 output',
+      multimodal: false,
+      specialties: 'Code generation, debugging, refactoring'
     },
     {
       key: 'smallest_llm_api',
       displayName: 'Smallest LLM',
       description: 'Lightweight tasks and quick responses',
       defaultDeployment: 'gpt-5-nano',
-      envVar: 'SMALLEST_LLM_DEPLOYMENT_NAME'
+      envVar: 'SMALLEST_LLM_DEPLOYMENT_NAME',
+      contextWindow: '128K tokens',
+      costPer1M: '$0.075 input / $0.30 output',
+      multimodal: true,
+      specialties: 'Fast responses, simple queries, chat'
     },
     {
       key: 'allaround_llm_api',
       displayName: 'All-Around LLM',
       description: 'General purpose conversations',
       defaultDeployment: 'gpt-5-nano',
-      envVar: 'ALLAROUND_LLM_DEPLOYMENT_NAME'
+      envVar: 'ALLAROUND_LLM_DEPLOYMENT_NAME',
+      contextWindow: '128K tokens',
+      costPer1M: '$0.50 input / $1.50 output',
+      multimodal: true,
+      specialties: 'General tasks, analysis, writing'
     },
     {
       key: 'best_llm_api',
       displayName: 'Best LLM',
       description: 'Complex reasoning and advanced tasks',
       defaultDeployment: 'gpt-5-nano',
-      envVar: 'BEST_LLM_DEPLOYMENT_NAME'
+      envVar: 'BEST_LLM_DEPLOYMENT_NAME',
+      contextWindow: '200K tokens',
+      costPer1M: '$3.00 input / $15.00 output',
+      multimodal: false,
+      specialties: 'Complex reasoning, math, research'
     }
   ],
 
