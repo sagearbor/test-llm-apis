@@ -17,7 +17,7 @@ export const modelConfig = {
       key: 'coding_llm_api',
       displayName: 'Coding LLM',
       description: 'Code generation and programming tasks',
-      defaultDeployment: 'gpt-5-nano',
+      defaultDeployment: 'gpt-5-mini', // 'gpt-5-codex',
       envVar: 'CODING_LLM_DEPLOYMENT_NAME'
     },
     {
