@@ -5,101 +5,118 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Azure OpenAI Chatbox Test</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
     select, input, button { margin: 5px 0; padding: 5px; }
-    #chatbox { border: 1px solid #ccc; height: 300px; overflow-y: auto; padding: 10px; margin-bottom: 10px; }
+    #chatbox { border: 1px solid #ccc; height: 400px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
     .user { color: blue; }
     .bot { color: green; }
-    #healthStatus { margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 5px; }
-    .status-item { margin: 10px 0; display: flex; align-items: center; justify-content: space-between; }
+
+    /* Two-column layout */
+    .two-column-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .left-column, .right-column { background: #f5f5f5; border-radius: 5px; padding: 15px; }
+
+    #healthStatus { margin: 0; padding: 0; background: transparent; }
+    #healthStatus h3 { margin: 0 0 10px 0; font-size: 16px; }
+    .status-item { margin: 5px 0; display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
     .status-indicator {
       display: inline-block;
-      width: 20px;
-      height: 20px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
-      margin-right: 10px;
+      margin-right: 8px;
     }
     .status-ok { background-color: #4CAF50; }
     .status-error { background-color: #f44336; }
     .status-checking { background-color: #FFC107; }
-    .status-label { flex: 1; font-weight: bold; }
-    .status-message { font-size: 0.9em; color: #666; }
+    .status-label { flex: 1; font-weight: normal; }
+    .status-message { font-size: 0.85em; color: #666; }
     .refresh-btn {
-      padding: 8px 15px;
+      padding: 4px 10px;
       background: #2196F3;
       color: white;
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      font-size: 12px;
     }
     .refresh-btn:hover { background: #0b7dda; }
 
+    .model-select-wrapper { margin-top: 15px; }
+    .model-select-wrapper label { display: block; margin-bottom: 5px; font-size: 14px; font-weight: bold; }
+    #modelSelect { width: 100%; padding: 8px; font-size: 14px; }
+
     /* File Upload Styles */
     #fileUploadArea {
-      margin: 20px 0;
-      padding: 20px;
+      margin: 0;
+      padding: 0;
+      background: transparent;
+    }
+    #fileUploadArea h3 { margin: 0 0 8px 0; font-size: 16px; }
+    .file-drop-zone {
+      padding: 15px;
       border: 2px dashed #ccc;
-      border-radius: 8px;
-      background: #f9f9f9;
+      border-radius: 5px;
+      background: white;
       text-align: center;
       transition: all 0.3s;
+      margin-bottom: 10px;
     }
-    #fileUploadArea.dragover {
+    .file-drop-zone.dragover {
       border-color: #2196F3;
       background: #e3f2fd;
     }
-    .file-input-wrapper {
-      margin: 10px 0;
-    }
     .upload-btn {
-      padding: 10px 20px;
+      padding: 6px 12px;
       background: #4CAF50;
       color: white;
       border: none;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 13px;
     }
     .upload-btn:hover { background: #45a049; }
     #filesList {
-      margin: 15px 0;
-      padding: 10px;
-      background: white;
-      border-radius: 4px;
-      max-height: 150px;
+      margin: 0;
+      padding: 0;
+      max-height: 120px;
       overflow-y: auto;
     }
     .file-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px;
-      margin: 5px 0;
-      background: #f5f5f5;
-      border-radius: 4px;
+      padding: 6px 8px;
+      margin: 4px 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      font-size: 12px;
     }
     .file-item.selected {
       background: #e3f2fd;
-      border: 1px solid #2196F3;
+      border-color: #2196F3;
     }
     .file-name {
       flex: 1;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .file-size {
       color: #666;
-      font-size: 12px;
-      margin: 0 10px;
+      font-size: 11px;
+      margin: 0 6px;
     }
     .delete-btn {
-      padding: 4px 8px;
+      padding: 2px 6px;
       background: #f44336;
       color: white;
       border: none;
-      border-radius: 3px;
+      border-radius: 2px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 10px;
     }
     .delete-btn:hover { background: #da190b; }
     .file-badge {
@@ -114,7 +131,7 @@
   </style>
 </head>
 <body>
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
     <h1 style="margin: 0;">Azure OpenAI Chatbox Test</h1>
     <div id="userInfo" style="display: none;">
       <span id="userName" style="margin-right: 10px; color: #666;"></span>
@@ -122,33 +139,38 @@
     </div>
   </div>
 
-  <div id="healthStatus">
-    <h3>Model Connection Status <button class="refresh-btn" onclick="checkHealth()">Refresh</button></h3>
-    <div id="statusList">Checking connections...</div>
-  </div>
+  <!-- Two Column Layout -->
+  <div class="two-column-container">
+    <!-- Left Column: Model Status & Selection -->
+    <div class="left-column">
+      <div id="healthStatus">
+        <h3>Model Connection Status <button class="refresh-btn" onclick="checkHealth()">Refresh</button></h3>
+        <div id="statusList">Checking connections...</div>
+      </div>
 
-  <label for="modelSelect">Choose Model:</label>
-  <select id="modelSelect">
-    <option value="coding_llm_api">Coding LLM</option>
-    <option value="smallest_llm_api">Smallest LLM</option>
-    <option value="allaround_llm_api">All-Around LLM</option>
-    <option value="best_llm_api">Best LLM</option>
-  </select>
-
-  <!-- File Upload Area -->
-  <div id="fileUploadArea">
-    <h3>📎 Upload File (Optional)</h3>
-    <p style="color: #666; font-size: 14px;">
-      Upload a file to include it in your question. Supports: PDF, DOCX, code files, ZIP, and more.
-    </p>
-    <div class="file-input-wrapper">
-      <input type="file" id="fileInput" style="display: none;" onchange="uploadFile()" />
-      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
-        Choose File
-      </button>
-      <span style="margin: 0 10px; color: #666;">or drag and drop here</span>
+      <div class="model-select-wrapper">
+        <label for="modelSelect">Choose Model:</label>
+        <select id="modelSelect">
+          <option value="coding_llm_api">Coding LLM</option>
+          <option value="smallest_llm_api">Smallest LLM</option>
+          <option value="allaround_llm_api">All-Around LLM</option>
+          <option value="best_llm_api">Best LLM</option>
+        </select>
+      </div>
     </div>
-    <div id="filesList"></div>
+
+    <!-- Right Column: File Upload -->
+    <div class="right-column">
+      <div id="fileUploadArea">
+        <h3>📎 Upload File (Optional)</h3>
+        <div class="file-drop-zone" id="fileDropZone">
+          <input type="file" id="fileInput" style="display: none;" onchange="uploadFile()" />
+          <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Choose File</button>
+          <span style="font-size: 12px; color: #666; margin-left: 8px;">or drag & drop</span>
+        </div>
+        <div id="filesList"></div>
+      </div>
+    </div>
   </div>
 
   <div id="chatbox"></div>
@@ -370,20 +392,20 @@
     }
 
     // Drag and drop support
-    const fileUploadArea = document.getElementById('fileUploadArea');
+    const fileDropZone = document.getElementById('fileDropZone');
 
-    fileUploadArea.addEventListener('dragover', (e) => {
+    fileDropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
-      fileUploadArea.classList.add('dragover');
+      fileDropZone.classList.add('dragover');
     });
 
-    fileUploadArea.addEventListener('dragleave', () => {
-      fileUploadArea.classList.remove('dragover');
+    fileDropZone.addEventListener('dragleave', () => {
+      fileDropZone.classList.remove('dragover');
     });
 
-    fileUploadArea.addEventListener('drop', (e) => {
+    fileDropZone.addEventListener('drop', (e) => {
       e.preventDefault();
-      fileUploadArea.classList.remove('dragover');
+      fileDropZone.classList.remove('dragover');
 
       const files = e.dataTransfer.files;
       if (files.length > 0) {
