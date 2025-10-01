@@ -273,13 +273,13 @@ app.post('/chat', requireAuth, async (req, res) => {
     // Responses API body format for codex
     requestBody = {
       input: finalPrompt,
-      max_output_tokens: 800
+      max_output_tokens: 12800
     };
   } else {
     // Standard Chat Completions format for other models
     requestBody = {
       messages: [{ role: 'user', content: finalPrompt }],
-      max_completion_tokens: 800
+      max_completion_tokens: 12800
     };
   }
 
