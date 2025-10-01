@@ -90,8 +90,10 @@ app.get('/api/auth/status', (req, res) => {
 });
 
 // Model metadata endpoint - returns all model configurations
-app.get('/api/models', requireAuth, (req, res) => {
-  res.json(modelConfig.getAllModels());
+// Optionally enriches with latest metadata from cache/API (once per day)
+app.get('/api/models', requireAuth, async (req, res) => {
+  const enriched = await modelConfig.getAllModels(true);
+  res.json(enriched);
 });
 
 // Health check endpoint - pings each model with minimal tokens
