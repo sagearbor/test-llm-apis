@@ -1,0 +1,29 @@
+{
+  "name": "test-llm-apis",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "A super‑simple test app for Azure OpenAI chat endpoints.",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sagearbor/test-llm-apis.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sagearbor/test-llm-apis/issues"
+  },
+  "homepage": "https://github.com/sagearbor/test-llm-apis#readme",
+  "dependencies": {
+    "@azure/msal-node": "^3.8.0",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "node-fetch": "^3.3.2"
+  }
+}
