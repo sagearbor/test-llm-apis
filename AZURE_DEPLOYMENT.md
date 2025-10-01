@@ -9,6 +9,24 @@ When deploying to Azure Web App:
 - **Model deployment names** → Either environment variables OR `config.js` file
 - **OAuth authentication** → Optional, enable via environment variable
 
+## Important: VM vs Azure Web App
+
+**If you deployed to a VM first:**
+- The VM setup uses `llmtest` service account, NGINX, and systemd
+- **None of that applies to Azure Web App**
+- Azure Web App runs in a managed container (no systemd, no NGINX needed)
+- Simply push your code and set environment variables
+
+**What transfers from VM to Web App:**
+- ✅ The Node.js app code (server.js, config.js, etc.)
+- ✅ OAuth configuration (same Azure AD app)
+- ✅ Environment variables (copy values from VM .env to Azure config)
+- ❌ systemd service files (not used)
+- ❌ NGINX configuration (Azure handles SSL automatically)
+- ❌ Service account setup (not needed)
+
+**TL;DR:** The app itself works the same. Just different deployment infrastructure.
+
 ## Prerequisites
 
 1. Azure subscription
@@ -305,6 +323,104 @@ If using `config.js`:
 4. Update the deployment name in either:
    - Environment variable: `CODING_LLM_DEPLOYMENT_NAME=gpt-4o`
    - Or in `config.js`: `defaultDeployment: 'gpt-4o'`
+
+## Migrating from VM to Azure Web App
+
+**Already deployed on a VM? Here's how to move to Azure Web App:**
+
+### Step 1: Extract Configuration from VM
+
+```bash
+# SSH to your VM
+ssh your-username@alp-dsvm-003.azure.dhe.duke.edu
+
+# View your current .env (copy these values)
+sudo cat /opt/llm-test-app/.env
+```
+
+### Step 2: Create Azure Web App
+
+Follow "Part 1: Basic Deployment" above to create the Web App.
+
+### Step 3: Copy Environment Variables
+
+In Azure Portal → Your Web App → Configuration → Application settings:
+
+Add all the values from your VM's `.env` file:
+- `AZURE_OPENAI_ENDPOINT`
+- `AZURE_OPENAI_API_KEY`
+- `AZURE_OPENAI_API_VERSION`
+- `ENABLE_OAUTH` (set to `true`)
+- `AZURE_AD_CLIENT_ID`
+- `AZURE_AD_TENANT_ID`
+- `AZURE_AD_CLIENT_SECRET`
+- `SESSION_SECRET`
+- `NODE_ENV` (set to `production`)
+- Model deployment names (if you used env vars)
+
+### Step 4: Update OAuth Redirect URI
+
+Azure Portal → Entra ID → App registrations → Your app → Authentication:
+
+Add new redirect URI:
+```
+https://your-app-name.azurewebsites.net/auth/redirect
+```
+
+Keep the VM redirect URI too (both will work).
+
+### Step 5: Deploy Code
+
+```bash
+# From your local machine
+cd /path/to/test-llm-apis
+git push azure main
+# or use GitHub Actions
+```
+
+### Step 6: Test
+
+1. Browse to `https://your-app-name.azurewebsites.net`
+2. Verify OAuth login works
+3. Check health status
+
+### Step 7: Update DNS (Optional)
+
+If you want a custom domain:
+1. Azure Portal → Web App → Custom domains
+2. Add your custom domain
+3. Configure SSL certificate
+
+### What You Can Delete from VM:
+
+Once Web App is working, you can optionally shut down the VM to save costs:
+
+```bash
+# Stop the service
+sudo systemctl stop llm-test
+sudo systemctl disable llm-test
+
+# Or deallocate the entire VM in Azure Portal
+```
+
+### Differences Summary:
+
+| Aspect | VM Deployment | Azure Web App |
+|--------|---------------|---------------|
+| **URL** | `https://vm-name.duke.edu:3060` | `https://app-name.azurewebsites.net` |
+| **SSL** | NGINX + Duke certs | Automatic (Azure-managed) |
+| **Port** | 3060 (NGINX) → 3000 (Node) | 80/443 (automatic) |
+| **Auto-restart** | systemd | Built-in (Azure manages) |
+| **Logs** | journalctl + NGINX logs | Azure App Service logs |
+| **Updates** | git pull + systemctl restart | git push (auto-deploy) |
+| **Scaling** | Manual (VM size) | Auto-scale (built-in) |
+| **Cost** | VM + compute time | App Service plan |
+
+**Recommendation:** Start with VM for testing, move to Azure Web App for production if you want:
+- Auto-scaling
+- Easier management
+- No server maintenance
+- Built-in deployment CI/CD
 
 ## Support
 
