@@ -15,27 +15,33 @@ const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 const FALLBACK_METADATA = {
   'gpt-5-mini': {
     contextWindow: '128K tokens',
-    costPer1M: '$0.15 input / $0.60 output',
-    multimodal: false,
+    costPer1M: '$0.15 input / $0.60 output (estimated)',
+    multimodal: true,
     specialties: 'Code generation, debugging, refactoring'
   },
   'gpt-5-nano': {
     contextWindow: '128K tokens',
-    costPer1M: '$0.075 input / $0.30 output',
+    costPer1M: '$0.05 input / $0.20 output (estimated)',
     multimodal: true,
     specialties: 'Fast responses, simple queries, chat'
   },
   'gpt-4o': {
     contextWindow: '128K tokens',
-    costPer1M: '$0.50 input / $1.50 output',
+    costPer1M: '$2.50 input / $10.00 output (estimated)',
     multimodal: true,
     specialties: 'General tasks, analysis, writing'
   },
   'o1-preview': {
     contextWindow: '200K tokens',
-    costPer1M: '$3.00 input / $15.00 output',
+    costPer1M: '$15.00 input / $60.00 output (estimated)',
     multimodal: false,
     specialties: 'Complex reasoning, math, research'
+  },
+  'gpt-5-codex': {
+    contextWindow: '128K tokens',
+    costPer1M: '$0.30 input / $1.20 output (estimated)',
+    multimodal: false,
+    specialties: 'Advanced code generation, debugging'
   }
 };
 
