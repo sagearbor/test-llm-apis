@@ -96,6 +96,21 @@ app.get('/api/models', requireAuth, async (req, res) => {
   res.json(enriched);
 });
 
+// Config endpoint - returns current server configuration
+app.get('/api/config', requireAuth, (req, res) => {
+  const maxCompletionTokens = parseInt(process.env.MAX_COMPLETION_TOKENS || '12800', 10);
+  const contextWindow = 128 * 1024; // 128K tokens
+  const percentagePerResponse = ((maxCompletionTokens / contextWindow) * 100).toFixed(1);
+  const estimatedChatTurns = Math.floor(contextWindow / (maxCompletionTokens * 2)); // *2 for input+output
+
+  res.json({
+    maxCompletionTokens,
+    contextWindow,
+    percentagePerResponse: parseFloat(percentagePerResponse),
+    estimatedChatTurns
+  });
+});
+
 // Health check endpoint - pings each model with minimal tokens
 app.get('/health', requireAuth, async (req, res) => {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
@@ -267,19 +282,22 @@ app.post('/chat', requireAuth, async (req, res) => {
   console.log('Request URL:', url);
   console.log('Deployment Name:', deploymentName);
 
+  // Get max completion tokens from environment (default 12800 = 10% of 128K context)
+  const maxCompletionTokens = parseInt(process.env.MAX_COMPLETION_TOKENS || '12800', 10);
+
   let requestBody;
 
   if (isCodexModel) {
     // Responses API body format for codex
     requestBody = {
       input: finalPrompt,
-      max_output_tokens: 12800
+      max_output_tokens: maxCompletionTokens
     };
   } else {
     // Standard Chat Completions format for other models
     requestBody = {
       messages: [{ role: 'user', content: finalPrompt }],
-      max_completion_tokens: 12800
+      max_completion_tokens: maxCompletionTokens
     };
   }
 
