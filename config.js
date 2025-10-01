@@ -10,6 +10,8 @@
  * - Changes to this file will be reflected after redeploying from git
  */
 
+import { getAllModelMetadata } from './model-metadata-fetcher.js';
+
 export const modelConfig = {
   // Model definitions with friendly names and default deployment names
   models: [
@@ -72,12 +74,44 @@ export const modelConfig = {
 
   /**
    * Get all model configs with their deployment names
+   * Optionally enrich with latest metadata from cache/API
    */
-  getAllModels() {
-    return this.models.map(model => ({
+  async getAllModels(enrichWithLatestMetadata = false) {
+    const models = this.models.map(model => ({
       ...model,
       deploymentName: this.getDeploymentName(model.key)
     }));
+
+    // Optionally fetch latest metadata from cache/API
+    if (enrichWithLatestMetadata) {
+      try {
+        const latestMetadata = await getAllModelMetadata();
+
+        return models.map(model => {
+          const deploymentName = model.deploymentName;
+          const metadata = latestMetadata[deploymentName];
+
+          if (metadata) {
+            return {
+              ...model,
+              // Override with latest metadata if available
+              contextWindow: metadata.contextWindow || model.contextWindow,
+              costPer1M: metadata.costPer1M || model.costPer1M,
+              multimodal: metadata.multimodal !== undefined ? metadata.multimodal : model.multimodal,
+              specialties: metadata.specialties || model.specialties,
+              _lastUpdated: latestMetadata._lastUpdated
+            };
+          }
+
+          return model;
+        });
+      } catch (err) {
+        console.error('Failed to enrich with latest metadata:', err);
+        return models;
+      }
+    }
+
+    return models;
   },
 
   /**
