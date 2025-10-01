@@ -323,15 +323,20 @@ Best for: ${metadata.specialties || 'N/A'}`;
           body.fileId = selectedFileId;
         }
 
+        console.log('Sending request:', body);
         const response = await fetch('/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
         const data = await response.json();
-        chatbox.innerHTML += `<div class='bot'><strong>Bot:</strong> ${data.answer}</div>`;
+        console.log('Received response:', data);
+
+        const answer = data.answer || '(empty response from chat model)';
+        chatbox.innerHTML += `<div class='bot'><strong>Bot:</strong> ${answer}</div>`;
         chatbox.scrollTop = chatbox.scrollHeight;
       } catch (err) {
+        console.error('Chat error:', err);
         chatbox.innerHTML += `<div class='bot'><strong>Bot:</strong> Error: ${err.message}</div>`;
       }
     }
