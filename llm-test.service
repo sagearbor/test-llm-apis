@@ -37,10 +37,10 @@ Wants=network-online.target
 # Service type
 Type=simple
 
-# User and group to run as (IMPORTANT: Update this!)
-# Replace 'your-username' with actual username (run 'whoami' to find out)
-User=your-username
-Group=your-username
+# User and group to run as (IMPORTANT: Security best practice)
+# Running as dedicated service account (not root)
+User=llmtest
+Group=llmtest
 
 # Working directory (where package.json and server.js are located)
 WorkingDirectory=/opt/llm-test-app

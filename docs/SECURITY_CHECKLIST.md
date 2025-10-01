@@ -88,23 +88,35 @@ ls -la /opt/llm-test-app/.env
 ### 4. Application Security
 
 **What's Implemented:**
-- ✅ **Non-Root Execution**: App runs as regular user (not root)
+- ✅ **Non-Root Execution**: App runs as dedicated service account `llmtest` (NOT root)
+- ✅ **Dedicated Service Account**: Separate user with no login shell, minimal permissions
 - ✅ **Rate Limiting**: NGINX limits request rate (10 req/sec with burst)
 - ✅ **Security Headers**: HSTS, CSP, X-Frame-Options, etc.
 - ✅ **Input Validation**: All inputs validated by Azure OpenAI API
 - ✅ **No Code Execution**: App doesn't execute user input as code
 - ✅ **Dependency Scanning**: Use `npm audit` regularly
+- ✅ **File Permissions**: .env file is 600 (only service account can read)
 
 **Why IT Will Approve:**
-- Follows security best practices
+- Follows security best practices (principle of least privilege)
 - Minimal attack surface
-- No privilege escalation risk
-- Standard Node.js security patterns
+- No privilege escalation risk (runs as unprivileged user)
+- Even if app is compromised, attacker has no root access
+- Standard Linux service security patterns
 
 **How to Show IT:**
 ```bash
-# Verify running as non-root
-ps aux | grep node  # Check USER column
+# Verify running as llmtest (not root)
+ps aux | grep node
+# Should show: llmtest  <pid> ... node server.js
+
+# Verify service account has no login
+grep llmtest /etc/passwd
+# Should show: llmtest:x:...:...::/bin/false
+
+# Check .env permissions
+ls -la /opt/llm-test-app/.env
+# Should show: -rw------- 1 llmtest llmtest
 
 # Check for security headers
 curl -I https://alp-dsvm-003.azure.dhe.duke.edu:3060
