@@ -215,7 +215,7 @@
   </div>
 
   <div style="margin-bottom: 10px;">
-    <input type="text" id="userInput" placeholder="Type your question here..." style="width: calc(100% - 80px); padding: 10px; font-size: 14px;" />
+    <input type="text" id="userInput" placeholder="Type your question here..." style="width: calc(100% - 80px); padding: 10px; font-size: 14px;" onkeypress="if(event.key === 'Enter') sendMessage()" />
     <button onclick="sendMessage()" style="padding: 10px 20px; font-size: 14px;">Send</button>
   </div>
 
