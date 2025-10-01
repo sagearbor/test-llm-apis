@@ -13,10 +13,16 @@ A simple web interface for testing multiple Azure OpenAI model deployments with 
 
 ## Deployment Options
 
+- **🐳 Docker (Recommended)**: See [docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMENT.md)
+  - Local testing with Docker
+  - VM deployment with Docker Compose
+  - Azure Container Instances
+  - Azure Container Apps (best for production)
+
 - **Local Development**: Quick start guide below
-- **Azure Web App**: See [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md) for Azure Web App deployment
-- **Linux VM/Server**: See [docs/VM_DEPLOYMENT.md](docs/VM_DEPLOYMENT.md) for VM deployment with NGINX and SSL
-- **Security Guide**: See [docs/SECURITY_CHECKLIST.md](docs/SECURITY_CHECKLIST.md) for security best practices
+- **Azure Web App**: See [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)
+- **Linux VM/Server**: See [docs/VM_DEPLOYMENT.md](docs/VM_DEPLOYMENT.md)
+- **Security Guide**: See [docs/SECURITY_CHECKLIST.md](docs/SECURITY_CHECKLIST.md)
 
 ## Prerequisites
 
