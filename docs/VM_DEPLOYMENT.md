@@ -76,37 +76,60 @@ sudo systemctl enable nginx
 
 ## Part 2: Deploy the Application
 
-### 2.1 Create Application Directory
+### 2.1 Create Service Account (IMPORTANT - Security Best Practice)
+
+**Even if you're logged in as root, the app should run as a non-root user for security.**
+
+```bash
+# Create a dedicated system user for the app (no login shell)
+sudo useradd --system --no-create-home --shell /bin/false llmtest
+
+# Verify user was created
+id llmtest
+# Should show: uid=... gid=... groups=...
+```
+
+### 2.2 Create Application Directory
 
 ```bash
 # Create app directory
 sudo mkdir -p /opt/llm-test-app
-sudo chown $USER:$USER /opt/llm-test-app
+
+# Set ownership to service account
+sudo chown -R llmtest:llmtest /opt/llm-test-app
+
+# Give yourself temporary access to set it up
+sudo chmod 755 /opt/llm-test-app
 cd /opt/llm-test-app
 ```
 
-### 2.2 Clone Repository
+### 2.3 Clone Repository
 
 ```bash
-# Clone the repo
-git clone https://github.com/sagearbor/test-llm-apis.git .
+# Clone the repo as root/your user (will fix permissions after)
+sudo git clone https://github.com/sagearbor/test-llm-apis.git /opt/llm-test-app
 
 # Or if already cloned, pull latest:
-git pull origin main
+cd /opt/llm-test-app
+sudo git pull origin main
 ```
 
-### 2.3 Install Dependencies
+### 2.4 Install Dependencies
 
 ```bash
-npm install
+cd /opt/llm-test-app
+sudo npm install
+
+# Fix ownership after npm install
+sudo chown -R llmtest:llmtest /opt/llm-test-app
 ```
 
-### 2.4 Configure Environment Variables
+### 2.5 Configure Environment Variables
 
 ```bash
 # Create .env file
-cp .env.example .env
-nano .env
+sudo cp /opt/llm-test-app/.env.example /opt/llm-test-app/.env
+sudo nano /opt/llm-test-app/.env
 ```
 
 **Edit `.env` with these settings:**
@@ -136,11 +159,23 @@ PORT=3000
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-### 2.5 Test the Application
+**After editing, secure the .env file:**
+```bash
+# Only llmtest user can read the file
+sudo chown llmtest:llmtest /opt/llm-test-app/.env
+sudo chmod 600 /opt/llm-test-app/.env
+
+# Verify permissions
+ls -la /opt/llm-test-app/.env
+# Should show: -rw------- 1 llmtest llmtest
+```
+
+### 2.6 Test the Application
 
 ```bash
-# Test run
-npm start
+# Test run as the service account
+cd /opt/llm-test-app
+sudo -u llmtest NODE_ENV=production node server.js
 
 # In another terminal, test:
 curl http://localhost:3000/health
@@ -274,9 +309,23 @@ SyslogIdentifier=llm-test
 WantedBy=multi-user.target
 ```
 
-**Replace `your-username`** with your actual username:
+**Replace `your-username`** with `llmtest`:
 ```bash
-whoami  # Use this username
+# The service file should have:
+# User=llmtest
+# Group=llmtest
+```
+
+**Important**: The systemd service file is already included in the repo at `/opt/llm-test-app/llm-test.service`. Copy and edit it:
+
+```bash
+# Copy to systemd directory
+sudo cp /opt/llm-test-app/llm-test.service /etc/systemd/system/
+
+# Edit to set user to llmtest (if not already)
+sudo nano /etc/systemd/system/llm-test.service
+# Change: User=llmtest
+# Change: Group=llmtest
 ```
 
 ### 4.2 Enable and Start Service
