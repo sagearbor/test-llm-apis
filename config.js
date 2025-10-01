@@ -22,8 +22,8 @@ export const modelConfig = {
       defaultDeployment: 'gpt-5-mini', // 'gpt-5-codex',
       envVar: 'CODING_LLM_DEPLOYMENT_NAME',
       contextWindow: '128K tokens',
-      costPer1M: '$0.15 input / $0.60 output',
-      multimodal: false,
+      costPer1M: '$0.15 input / $0.60 output (estimated)',
+      multimodal: true,  // gpt-5-mini supports vision
       specialties: 'Code generation, debugging, refactoring'
     },
     {
@@ -33,7 +33,7 @@ export const modelConfig = {
       defaultDeployment: 'gpt-5-nano',
       envVar: 'SMALLEST_LLM_DEPLOYMENT_NAME',
       contextWindow: '128K tokens',
-      costPer1M: '$0.075 input / $0.30 output',
+      costPer1M: '$0.05 input / $0.20 output (estimated)',
       multimodal: true,
       specialties: 'Fast responses, simple queries, chat'
     },
@@ -44,7 +44,7 @@ export const modelConfig = {
       defaultDeployment: 'gpt-5-nano',
       envVar: 'ALLAROUND_LLM_DEPLOYMENT_NAME',
       contextWindow: '128K tokens',
-      costPer1M: '$0.50 input / $1.50 output',
+      costPer1M: '$0.05 input / $0.20 output (estimated)',
       multimodal: true,
       specialties: 'General tasks, analysis, writing'
     },
@@ -54,9 +54,9 @@ export const modelConfig = {
       description: 'Complex reasoning and advanced tasks',
       defaultDeployment: 'gpt-5-nano',
       envVar: 'BEST_LLM_DEPLOYMENT_NAME',
-      contextWindow: '200K tokens',
-      costPer1M: '$3.00 input / $15.00 output',
-      multimodal: false,
+      contextWindow: '128K tokens',
+      costPer1M: '$0.05 input / $0.20 output (estimated)',
+      multimodal: true,
       specialties: 'Complex reasoning, math, research'
     }
   ],
