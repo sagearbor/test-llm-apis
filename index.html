@@ -421,17 +421,11 @@
       <!-- Two-column grid layout within left panel -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
 
-        <!-- Left side: Header + Controls -->
+        <!-- Left side: Controls stacked vertically -->
         <div>
-          <div id="healthStatus">
-            <h3 style="margin: 0 0 6px 0; font-size: 14px;">Model Connection Status
-              <button class="refresh-btn" id="refreshHealthBtn" style="margin-top: 4px; display: block; font-size: 10px; padding: 3px 8px;">Refresh</button>
-            </h3>
-          </div>
-
-          <div class="model-select-wrapper" style="margin-top: 8px;">
-            <label for="modelSelect" style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 3px;">Choose Model:</label>
-            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+          <div class="model-select-wrapper">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+              <label for="modelSelect" style="font-size: 11px; font-weight: bold; white-space: nowrap; min-width: 50px;">Choose<br>Model:</label>
               <select id="modelSelect" style="flex: 1; padding: 3px; font-size: 11px;">
                 <option value="coding_llm_api">Coding LLM</option>
                 <option value="smallest_llm_api" selected>Smallest LLM</option>
@@ -442,40 +436,45 @@
               <span id="summaryBadge" class="summary-badge" style="display: none;" data-tooltip="Conversation history compressed"></span>
             </div>
           </div>
+
+          <!-- GPT-5 Controls: Stacked vertically (hidden by default) -->
+          <div id="gpt5Controls" style="display: none;">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+              <label for="reasoningEffort" style="font-size: 11px; font-weight: bold; white-space: nowrap; min-width: 50px;">Reasoning:</label>
+              <select id="reasoningEffort" style="flex: 1; padding: 3px; font-size: 11px;">
+                <option value="minimal" selected>Minimal</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+              <label for="verbosity" style="font-size: 11px; font-weight: bold; white-space: nowrap; min-width: 50px;">Verbosity:</label>
+              <select id="verbosity" style="flex: 1; padding: 3px; font-size: 11px;">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+            <label for="tokenSlider" style="font-size: 11px; font-weight: bold; white-space: nowrap; min-width: 50px;">Tokens:</label>
+            <div style="flex: 1;">
+              <input type="range" id="tokenSlider" min="1000" max="50000" value="10000" step="1000" style="width: 100%;">
+              <div id="tokenConfig" style="font-size: 9px; color: #666;"></div>
+            </div>
+          </div>
         </div>
 
-        <!-- Right side: Status list + Token slider -->
+        <!-- Right side: Status header + list -->
         <div>
-          <div id="statusList" style="margin-bottom: 8px;">Checking connections...</div>
-
-          <div style="margin-top: 8px;">
-            <label for="tokenSlider" style="font-size: 11px; font-weight: bold; margin-bottom: 2px; display: block;">Tokens:</label>
-            <input type="range" id="tokenSlider" min="1000" max="50000" value="10000" step="1000" style="width: 100%;">
-            <div id="tokenConfig" style="font-size: 9px; color: #666;"></div>
+          <div id="healthStatus">
+            <h3 style="margin: 0 0 6px 0; font-size: 14px;">Model Connection Status
+              <button class="refresh-btn" id="refreshHealthBtn" style="margin-top: 4px; display: block; font-size: 10px; padding: 3px 8px;">Refresh</button>
+            </h3>
           </div>
-        </div>
-      </div>
-
-      <!-- GPT-5 Controls: Side-by-side (hidden by default) - Full width at bottom -->
-      <div id="gpt5Controls" style="display: none; margin-top: 12px;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-          <div>
-            <label for="reasoningEffort" style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 2px;">Reasoning:</label>
-            <select id="reasoningEffort" style="width: 100%; padding: 3px; font-size: 11px;">
-              <option value="minimal">Minimal</option>
-              <option value="low">Low</option>
-              <option value="medium" selected>Medium</option>
-              <option value="high">High</option>
-            </select>
-          </div>
-          <div>
-            <label for="verbosity" style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 2px;">Verbosity:</label>
-            <select id="verbosity" style="width: 100%; padding: 3px; font-size: 11px;">
-              <option value="low">Low</option>
-              <option value="medium" selected>Medium</option>
-              <option value="high">High</option>
-            </select>
-          </div>
+          <div id="statusList">Checking connections...</div>
         </div>
       </div>
     </div>
