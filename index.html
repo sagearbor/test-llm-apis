@@ -27,20 +27,38 @@
     .left-column, .right-column { background: #f5f5f5; border-radius: 5px; padding: 15px; }
 
     #healthStatus { margin: 0; padding: 0; background: transparent; }
-    #healthStatus h3 { margin: 0 0 10px 0; font-size: 16px; }
-    .status-item { margin: 5px 0; display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+    #healthStatus h3 { margin: 0 0 8px 0; font-size: 15px; }
+    #statusList {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .status-item {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      font-size: 10px;
+      padding: 1px 0;
+    }
     .status-indicator {
       display: inline-block;
-      width: 12px;
-      height: 12px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
-      margin-right: 8px;
+      margin-right: 6px;
+      flex-shrink: 0;
     }
     .status-ok { background-color: #4CAF50; }
     .status-error { background-color: #f44336; }
     .status-checking { background-color: #FFC107; }
-    .status-label { flex: 1; font-weight: normal; }
-    .status-message { font-size: 0.85em; color: #666; }
+    .status-label {
+      flex: 1;
+      font-weight: normal;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .status-message { font-size: 10px; color: #666; }
     .refresh-btn {
       padding: 4px 10px;
       background: #2196F3;
@@ -400,48 +418,63 @@
   <div class="two-column-container">
     <!-- Left Column: Model Status & Selection -->
     <div class="left-column">
-      <div id="healthStatus">
-        <h3>Model Connection Status <button class="refresh-btn" id="refreshHealthBtn">Refresh</button></h3>
-        <div id="statusList">Checking connections...</div>
+      <!-- Two-column grid layout within left panel -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+
+        <!-- Left side: Header + Controls -->
+        <div>
+          <div id="healthStatus">
+            <h3 style="margin: 0 0 6px 0; font-size: 14px;">Model Connection Status
+              <button class="refresh-btn" id="refreshHealthBtn" style="margin-top: 4px; display: block; font-size: 10px; padding: 3px 8px;">Refresh</button>
+            </h3>
+          </div>
+
+          <div class="model-select-wrapper" style="margin-top: 8px;">
+            <label for="modelSelect" style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 3px;">Choose Model:</label>
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+              <select id="modelSelect" style="flex: 1; padding: 3px; font-size: 11px;">
+                <option value="coding_llm_api">Coding LLM</option>
+                <option value="smallest_llm_api" selected>Smallest LLM</option>
+                <option value="allaround_llm_api">All-Around LLM</option>
+                <option value="best_llm_api">Best LLM</option>
+                <option value="longest_llm_api">Longest LLM</option>
+              </select>
+              <span id="summaryBadge" class="summary-badge" style="display: none;" data-tooltip="Conversation history compressed"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right side: Status list + Token slider -->
+        <div>
+          <div id="statusList" style="margin-bottom: 8px;">Checking connections...</div>
+
+          <div style="margin-top: 8px;">
+            <label for="tokenSlider" style="font-size: 11px; font-weight: bold; margin-bottom: 2px; display: block;">Tokens:</label>
+            <input type="range" id="tokenSlider" min="1000" max="50000" value="10000" step="1000" style="width: 100%;">
+            <div id="tokenConfig" style="font-size: 9px; color: #666;"></div>
+          </div>
+        </div>
       </div>
 
-      <div class="model-select-wrapper">
-        <label for="modelSelect">Choose Model:</label>
-        <div style="display: flex; align-items: center;">
-          <select id="modelSelect" style="flex: 1;">
-            <option value="coding_llm_api">Coding LLM</option>
-            <option value="smallest_llm_api" selected>Smallest LLM</option>
-            <option value="allaround_llm_api">All-Around LLM</option>
-            <option value="best_llm_api">Best LLM</option>
-            <option value="longest_llm_api">Longest LLM</option>
-          </select>
-          <span id="summaryBadge" class="summary-badge" style="display: none;" data-tooltip="Conversation history compressed"></span>
-        </div>
-        <div style="margin-top: 12px;">
-          <label for="tokenSlider" style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 4px;">Response Length (tokens):</label>
-          <input type="range" id="tokenSlider" min="1000" max="50000" value="10000" step="1000" style="width: 100%; margin-bottom: 4px;">
-          <div id="tokenConfig" style="font-size: 11px; color: #666;"></div>
-        </div>
-        <!-- GPT-5 Specific Controls (hidden by default) -->
-        <div id="gpt5Controls" style="margin-top: 12px; display: none;">
-          <div style="margin-bottom: 8px;">
-            <label for="reasoningEffort" style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 4px;">Reasoning Effort:</label>
-            <select id="reasoningEffort" style="width: 100%; padding: 4px; font-size: 12px;">
-              <option value="minimal">Minimal (fastest)</option>
+      <!-- GPT-5 Controls: Side-by-side (hidden by default) - Full width at bottom -->
+      <div id="gpt5Controls" style="display: none; margin-top: 12px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label for="reasoningEffort" style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 2px;">Reasoning:</label>
+            <select id="reasoningEffort" style="width: 100%; padding: 3px; font-size: 11px;">
+              <option value="minimal">Minimal</option>
               <option value="low">Low</option>
-              <option value="medium" selected>Medium (default)</option>
-              <option value="high">High (thorough)</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
             </select>
-            <div style="font-size: 10px; color: #666; margin-top: 2px;">Controls model thinking depth</div>
           </div>
           <div>
-            <label for="verbosity" style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 4px;">Verbosity:</label>
-            <select id="verbosity" style="width: 100%; padding: 4px; font-size: 12px;">
-              <option value="low">Low (concise)</option>
-              <option value="medium" selected>Medium (default)</option>
-              <option value="high">High (detailed)</option>
+            <label for="verbosity" style="font-size: 11px; font-weight: bold; display: block; margin-bottom: 2px;">Verbosity:</label>
+            <select id="verbosity" style="width: 100%; padding: 3px; font-size: 11px;">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
             </select>
-            <div style="font-size: 10px; color: #666; margin-top: 2px;">Controls response length/detail</div>
           </div>
         </div>
       </div>
