@@ -422,6 +422,28 @@
           <input type="range" id="tokenSlider" min="1000" max="50000" value="10000" step="1000" style="width: 100%; margin-bottom: 4px;">
           <div id="tokenConfig" style="font-size: 11px; color: #666;"></div>
         </div>
+        <!-- GPT-5 Specific Controls (hidden by default) -->
+        <div id="gpt5Controls" style="margin-top: 12px; display: none;">
+          <div style="margin-bottom: 8px;">
+            <label for="reasoningEffort" style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 4px;">Reasoning Effort:</label>
+            <select id="reasoningEffort" style="width: 100%; padding: 4px; font-size: 12px;">
+              <option value="minimal">Minimal (fastest)</option>
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium (default)</option>
+              <option value="high">High (thorough)</option>
+            </select>
+            <div style="font-size: 10px; color: #666; margin-top: 2px;">Controls model thinking depth</div>
+          </div>
+          <div>
+            <label for="verbosity" style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 4px;">Verbosity:</label>
+            <select id="verbosity" style="width: 100%; padding: 4px; font-size: 12px;">
+              <option value="low">Low (concise)</option>
+              <option value="medium" selected>Medium (default)</option>
+              <option value="high">High (detailed)</option>
+            </select>
+            <div style="font-size: 10px; color: #666; margin-top: 2px;">Controls response length/detail</div>
+          </div>
+        </div>
       </div>
     </div>
 

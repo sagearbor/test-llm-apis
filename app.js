@@ -537,6 +537,13 @@ Best for: ${metadata.specialties || 'N/A'}`;
           body.fileId = selectedFileId;
         }
 
+        // Add GPT-5 specific parameters if GPT-5 controls are visible
+        const gpt5Controls = document.getElementById('gpt5Controls');
+        if (gpt5Controls && gpt5Controls.style.display !== 'none') {
+          body.reasoningEffort = document.getElementById('reasoningEffort').value;
+          body.verbosity = document.getElementById('verbosity').value;
+        }
+
         console.log('Sending request:', body);
         const response = await fetch('/chat', {
           method: 'POST',
@@ -733,6 +740,38 @@ Best for: ${metadata.specialties || 'N/A'}`;
       }
     }
 
+    // Show/hide GPT-5 controls based on selected model
+    function updateGPT5Controls(modelKey) {
+      const metadata = modelMetadata[modelKey] || {};
+      const deploymentName = metadata.deploymentName || '';
+      const gpt5Controls = document.getElementById('gpt5Controls');
+      const reasoningEffort = document.getElementById('reasoningEffort');
+
+      // Show GPT-5 controls if deployment name starts with 'gpt-5'
+      if (deploymentName.toLowerCase().startsWith('gpt-5')) {
+        gpt5Controls.style.display = 'block';
+
+        // Disable 'minimal' option for gpt-5-codex
+        const isCodex = deploymentName.toLowerCase().includes('codex');
+        const minimalOption = reasoningEffort.querySelector('option[value="minimal"]');
+        if (minimalOption) {
+          if (isCodex) {
+            minimalOption.disabled = true;
+            minimalOption.text = 'Minimal (not available for Codex)';
+            // Reset to 'low' if currently set to 'minimal'
+            if (reasoningEffort.value === 'minimal') {
+              reasoningEffort.value = 'low';
+            }
+          } else {
+            minimalOption.disabled = false;
+            minimalOption.text = 'Minimal (fastest)';
+          }
+        }
+      } else {
+        gpt5Controls.style.display = 'none';
+      }
+    }
+
     // Load server configuration and set up slider
     async function loadServerConfig() {
       try {
@@ -807,10 +846,16 @@ Best for: ${metadata.specialties || 'N/A'}`;
         // NEW BEHAVIOR: Seamless model switching with conversation memory
         previousModel = newModel;
         await updateContextWindowForModel(newModel);
+
+        // Show/hide GPT-5 controls based on selected model
+        updateGPT5Controls(newModel);
       });
 
       // Load initial context window for default model
       await updateContextWindowForModel(modelSelect.value);
+
+      // Initialize GPT-5 controls visibility for default model
+      updateGPT5Controls(modelSelect.value);
 
       // ===== ADD EVENT LISTENERS FOR ALL BUTTONS =====
 

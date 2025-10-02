@@ -163,9 +163,8 @@ Summary:`;
       const deploymentName = deploymentMap['smallest_llm_api'];
       const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
       const apiKey = process.env.AZURE_OPENAI_API_KEY;
-      const apiVersion = process.env.AZURE_OPENAI_API_VERSION || '2024-02-01';
 
-      const url = `${endpoint.replace(/\/$/, '')}/openai/deployments/${deploymentName}/chat/completions?api-version=${apiVersion}`;
+      const url = `${endpoint.replace(/\/$/, '')}/openai/v1/responses`;
 
       const response = await fetch(url, {
         method: 'POST',
@@ -174,13 +173,14 @@ Summary:`;
           'api-key': apiKey
         },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: summaryPrompt }],
-          max_completion_tokens: 500
+          model: deploymentName,
+          input: summaryPrompt,
+          max_output_tokens: 500
         })
       });
 
       const data = await response.json();
-      const newSummary = data.choices?.[0]?.message?.content || 'Previous conversation context.';
+      const newSummary = data.output || 'Previous conversation context.';
 
       // Combine with existing summary if present
       if (this.summary) {
@@ -391,11 +391,10 @@ app.get('/api/config', requireAuth, async (req, res) => {
   });
 });
 
-// Health check endpoint - pings each model with minimal tokens
+// Health check endpoint - pings each model with minimal tokens using Responses API
 app.get('/health', requireAuth, async (req, res) => {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
   const apiKey = process.env.AZURE_OPENAI_API_KEY;
-  const apiVersion = process.env.AZURE_OPENAI_API_VERSION || '2024-02-01';
 
   const results = {};
 
@@ -406,15 +405,15 @@ app.get('/health', requireAuth, async (req, res) => {
     }
 
     try {
-      // Detect if codex model
-      const isCodexModel = deploymentName.toLowerCase().includes('codex');
-      const apiPath = isCodexModel ? 'responses' : 'chat/completions';
-      const url = `${endpoint.replace(/\/$/, '')}/openai/deployments/${deploymentName}/${apiPath}?api-version=${apiVersion}`;
+      // ALL models now use Responses API
+      const url = `${endpoint.replace(/\/$/, '')}/openai/v1/responses`;
 
-      // Minimal request body - some models need higher token counts
-      const requestBody = isCodexModel
-        ? { input: 'hi', max_output_tokens: 10 }
-        : { messages: [{ role: 'user', content: 'hi' }], max_completion_tokens: 10 };
+      // Minimal request body for Responses API (minimum 16 tokens required)
+      const requestBody = {
+        model: deploymentName,
+        input: 'hi',
+        max_output_tokens: 16
+      };
 
       const response = await fetch(url, {
         method: 'POST',
@@ -626,34 +625,56 @@ app.post('/chat', requireAuth, async (req, res) => {
     conversationMessages = [{ role: 'user', content: finalPrompt }];
   }
 
-  // Determine API endpoint & format based on model type
-  // gpt-5-codex and similar codex models use the "Responses API"
-  const isCodexModel = deploymentName.toLowerCase().includes('codex');
-  const apiPath = isCodexModel ? 'responses' : 'chat/completions';
-  const url = `${endpoint.replace(/\/$/, '')}/openai/deployments/${deploymentName}/${apiPath}?api-version=${apiVersion}`;
+  // ALL models now use the Responses API (/openai/v1/responses)
+  // No API version needed with v1 endpoint
+  const url = `${endpoint.replace(/\/$/, '')}/openai/v1/responses`;
 
   console.log('Request URL:', url);
   console.log('Deployment Name:', deploymentName);
   console.log('Conversation messages count:', conversationMessages.length);
 
-  // Get max completion tokens from client preference or environment (default 12800 = 10% of 128K context)
-  const maxCompletionTokens = maxTokens || parseInt(process.env.MAX_COMPLETION_TOKENS || '12800', 10);
+  // Get max output tokens from client preference or environment (default 12800 = 10% of 128K context)
+  const maxOutputTokens = maxTokens || parseInt(process.env.MAX_OUTPUT_TOKENS || '12800', 10);
 
-  let requestBody;
+  // Convert conversation messages array to single input string
+  // For Responses API, we concatenate all messages into a single prompt
+  let inputPrompt = '';
+  for (const msg of conversationMessages) {
+    if (msg.role === 'system') {
+      inputPrompt += `System: ${msg.content}\n\n`;
+    } else if (msg.role === 'user') {
+      inputPrompt += `User: ${msg.content}\n\n`;
+    } else if (msg.role === 'assistant') {
+      inputPrompt += `Assistant: ${msg.content}\n\n`;
+    }
+  }
+  // Add final instruction to ensure model responds as assistant
+  inputPrompt += 'Assistant:';
 
-  if (isCodexModel) {
-    // Responses API body format for codex - doesn't support multi-turn, use latest message only
-    const latestMessage = conversationMessages[conversationMessages.length - 1];
-    requestBody = {
-      input: latestMessage.content,
-      max_output_tokens: maxCompletionTokens
-    };
-  } else {
-    // Standard Chat Completions format for other models - use full conversation
-    requestBody = {
-      messages: conversationMessages,
-      max_completion_tokens: maxCompletionTokens
-    };
+  // Build request body for Responses API
+  const requestBody = {
+    model: deploymentName,
+    input: inputPrompt,
+    max_output_tokens: maxOutputTokens
+  };
+
+  // Add GPT-5 specific parameters if it's a GPT-5 model
+  const isGPT5Model = deploymentName.toLowerCase().startsWith('gpt-5');
+  if (isGPT5Model) {
+    // Get reasoning_effort and verbosity from request (defaults to medium)
+    const reasoningEffort = req.body.reasoningEffort || 'medium';
+    const verbosity = req.body.verbosity || 'medium';
+
+    // Note: gpt-5-codex does not support 'minimal' reasoning_effort
+    const isCodex = deploymentName.toLowerCase().includes('codex');
+    if (isCodex && reasoningEffort === 'minimal') {
+      requestBody.reasoning = { effort: 'low' }; // Fallback to 'low' for codex
+    } else {
+      requestBody.reasoning = { effort: reasoningEffort };
+    }
+
+    // Azure Responses API uses text.verbosity, not verbosity
+    requestBody.text = { verbosity: verbosity };
   }
 
   console.log('Request body:', JSON.stringify(requestBody, null, 2));
@@ -692,20 +713,27 @@ app.post('/chat', requireAuth, async (req, res) => {
         });
       }
 
-      throw new Error(`${errorMsg}. Deployment: ${deploymentName}, API: ${apiPath}, Version: ${apiVersion}`);
+      throw new Error(`${errorMsg}. Deployment: ${deploymentName}, API: Responses API (v1)`);
     }
 
-    // Extract response based on the API format used
-    let answer;
-    if (isCodexModel) {
-        // Responses API returns the answer in 'output_text'
-        answer = data.output_text || '(no response from codex model)';
-    } else {
-        answer = data.choices?.[0]?.message?.content || '(empty response from chat model)';
+    // Responses API returns the answer in 'output' field (array format)
+    let answer = '(empty response from model)';
+    if (Array.isArray(data.output)) {
+      // Find the message object in the output array
+      const messageObj = data.output.find(item => item.type === 'message');
+      if (messageObj && messageObj.content && messageObj.content.length > 0) {
+        const textContent = messageObj.content.find(c => c.type === 'output_text');
+        if (textContent && textContent.text) {
+          answer = textContent.text;
+        }
+      }
+    } else if (typeof data.output === 'string') {
+      // Fallback for simple string output
+      answer = data.output;
     }
 
-    // Extract token counts for usage tracking
-    const tokenCounts = extractTokenCounts(data, isCodexModel);
+    // Extract token counts for usage tracking from Responses API format
+    const tokenCounts = extractTokenCounts(data, true); // Always use Responses API format
 
     // Record usage to CSV
     if (isOAuthEnabled()) {
