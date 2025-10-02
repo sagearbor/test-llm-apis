@@ -216,13 +216,40 @@ Summary:`;
 
 // Helper to get or create conversation memory for a session
 function getConversationMemory(session) {
-  if (!session.conversationMemory) {
-    session.conversationMemory = new ConversationMemory(null, {
-      compressionThreshold: 0.6,
-      keepRecentCount: 10
-    });
+  // Session stores data as plain objects (serialized), so we need to reconstruct
+  if (!session.conversationMemoryData) {
+    session.conversationMemoryData = {
+      messages: [],
+      summary: null
+    };
   }
-  return session.conversationMemory;
+
+  // Create a new ConversationMemory instance and restore state
+  const memory = new ConversationMemory(null, {
+    compressionThreshold: 0.6,
+    keepRecentCount: 10
+  });
+
+  // Restore messages and summary from session
+  memory.messages = session.conversationMemoryData.messages || [];
+  memory.summary = session.conversationMemoryData.summary || null;
+
+  // Return a proxy that saves state back to session after each operation
+  return new Proxy(memory, {
+    get(target, prop) {
+      const value = target[prop];
+      if (typeof value === 'function') {
+        return async function(...args) {
+          const result = await value.apply(target, args);
+          // Save state back to session after any method call
+          session.conversationMemoryData.messages = target.messages;
+          session.conversationMemoryData.summary = target.summary;
+          return result;
+        };
+      }
+      return value;
+    }
+  });
 }
 
 // OAuth routes
