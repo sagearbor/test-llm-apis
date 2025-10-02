@@ -2,6 +2,7 @@ import express from 'express';
 import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 import session from 'express-session';
+import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs/promises';
 import { modelConfig } from './config.js';
@@ -15,14 +16,23 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-// Session configuration
+// Generate secure session secret if not provided
+const sessionSecret = process.env.SESSION_SECRET ||
+  (process.env.NODE_ENV === 'production'
+    ? (() => { throw new Error('SESSION_SECRET must be set in production'); })()
+    : crypto.randomBytes(32).toString('hex'));
+
+// Session configuration with enhanced security
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
+  secret: sessionSecret,
+  name: 'sessionId', // Change from default 'connect.sid' to avoid fingerprinting
   resave: false,
   saveUninitialized: false,
+  rolling: true, // Reset expiration on activity
   cookie: {
-    secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
-    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
+    httpOnly: true, // Prevent XSS attacks
+    sameSite: 'strict', // CSRF protection
     maxAge: 1000 * 60 * 60 * 24 // 24 hours
   }
 }));
@@ -37,12 +47,32 @@ const deploymentMap = modelConfig.getDeploymentMap();
 // ============================================================================
 
 /**
- * Simple token estimation (1 token ≈ 4 characters for English text)
- * This is a rough approximation. For exact counting, use tiktoken library.
+ * Improved token estimation for GPT models
+ * Based on OpenAI's guidelines: ~1 token per 4 chars in English
+ * More accurate estimates for common patterns
  */
 function estimateTokens(text) {
   if (!text) return 0;
-  return Math.ceil(text.length / 4);
+
+  // Base estimate: 1 token per 4 characters
+  let tokens = text.length / 4;
+
+  // Adjust for whitespace (spaces usually part of preceding token)
+  const spaces = (text.match(/ /g) || []).length;
+  tokens -= spaces * 0.25;
+
+  // Adjust for punctuation (often separate tokens)
+  const punctuation = (text.match(/[.,!?;:]/g) || []).length;
+  tokens += punctuation * 0.5;
+
+  // Adjust for newlines (usually separate tokens)
+  const newlines = (text.match(/\n/g) || []).length;
+  tokens += newlines;
+
+  // Add buffer for special tokens and formatting
+  tokens *= 1.1;
+
+  return Math.ceil(Math.max(tokens, 1));
 }
 
 /**
@@ -239,11 +269,20 @@ function getConversationMemory(session) {
     get(target, prop) {
       const value = target[prop];
       if (typeof value === 'function') {
-        return async function(...args) {
-          const result = await value.apply(target, args);
+        return function(...args) {
+          const result = value.apply(target, args);
           // Save state back to session after any method call
           session.conversationMemoryData.messages = target.messages;
           session.conversationMemoryData.summary = target.summary;
+          // Handle both sync and async results
+          if (result && typeof result.then === 'function') {
+            return result.then(res => {
+              // Save again after async completion
+              session.conversationMemoryData.messages = target.messages;
+              session.conversationMemoryData.summary = target.summary;
+              return res;
+            });
+          }
           return result;
         };
       }
@@ -483,8 +522,51 @@ app.delete('/api/files/:fileId', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/chat', requireAuth, async (req, res) => {
+// Simple in-memory rate limiter for chat endpoint
+const chatRateLimiter = (() => {
+  const requests = new Map();
+  const WINDOW_MS = 60000; // 1 minute
+  const MAX_REQUESTS = 20; // 20 requests per minute
+
+  return (req, res, next) => {
+    const sessionId = req.session?.id || 'anonymous';
+    const now = Date.now();
+
+    // Clean up old entries
+    for (const [key, data] of requests.entries()) {
+      if (now - data.firstRequest > WINDOW_MS) {
+        requests.delete(key);
+      }
+    }
+
+    const userData = requests.get(sessionId) || { count: 0, firstRequest: now };
+
+    if (userData.count >= MAX_REQUESTS && (now - userData.firstRequest) < WINDOW_MS) {
+      return res.status(429).json({
+        answer: 'Rate limit exceeded. Please wait a moment before sending more messages.'
+      });
+    }
+
+    userData.count++;
+    requests.set(sessionId, userData);
+    next();
+  };
+})();
+
+app.post('/chat', requireAuth, chatRateLimiter, async (req, res) => {
   const { prompt, model, fileId, maxTokens } = req.body;
+
+  // Input validation
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+    return res.status(400).json({ answer: 'Please provide a valid message.' });
+  }
+
+  if (!model || typeof model !== 'string') {
+    return res.status(400).json({ answer: 'Please select a valid model.' });
+  }
+
+  // Sanitize prompt (basic XSS prevention, though we're not rendering HTML)
+  const sanitizedPrompt = prompt.trim().substring(0, 100000); // Max 100K chars
 
   const deploymentName = deploymentMap[model];
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
@@ -501,7 +583,7 @@ app.post('/chat', requireAuth, async (req, res) => {
   const memory = getConversationMemory(req.session);
 
   // Build the final prompt - include file content if fileId provided
-  let finalPrompt = prompt;
+  let finalPrompt = sanitizedPrompt;
 
   if (fileId) {
     const files = req.session.uploadedFiles || {};
@@ -509,7 +591,7 @@ app.post('/chat', requireAuth, async (req, res) => {
 
     if (fileData) {
       // Prepend file content to user prompt
-      finalPrompt = `Below is the content of the uploaded file "${fileData.originalName}":\n\n${fileData.text}\n\n---\n\nUser question: ${prompt}`;
+      finalPrompt = `Below is the content of the uploaded file "${fileData.originalName}":\n\n${fileData.text}\n\n---\n\nUser question: ${sanitizedPrompt}`;
       console.log(`Including file in context: ${fileData.originalName} (${fileData.text.length} chars)`);
     } else {
       console.warn(`File ID ${fileId} not found in session`);
