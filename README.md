@@ -30,7 +30,7 @@ This application implements **enterprise-grade security** with multiple layers o
 
 ### Security Documentation
 - **Full Security Guide**: [SECURITY.md](SECURITY.md) - Comprehensive security documentation
-- **Deployment Checklist**: [docs/SECURITY_CHECKLIST.md](docs/SECURITY_CHECKLIST.md)
+- **Security Audit**: [SECURITY_AUDIT.md](SECURITY_AUDIT.md) - Complete audit checklist for IT teams
 
 ## Deployment Options
 
@@ -203,13 +203,18 @@ Endpoint: `/openai/deployments/{deployment}/responses`
 - No conversation history is maintained (each message is independent)
 - You can disable automatic health checks by removing the `window.addEventListener` in `index.html`
 
-## Security Notes
+## Production Deployment
 
-- Never commit your `.env` file to git
-- Keep your API keys secure
-- The `.env` file is already in `.gitignore`
+This application is **production-ready** with enterprise-grade security implementations. When deploying to production:
 
-## Notes
+1. Set `NODE_ENV=production` to enable all security features
+2. Configure `SESSION_SECRET` with a cryptographically secure value
+3. Set `ALLOWED_ORIGINS` for CORS protection
+4. Enable HTTPS (automatic redirect enforced in production)
+5. Review [SECURITY.md](SECURITY.md) for complete deployment checklist
 
-* This app is for testing only and not production‑ready.
-* Do **not** commit your real `.env` file to GitHub.
+## Important Security Notes
+
+- **Never commit your `.env` file** - It's already in `.gitignore`
+- **Keep API keys secure** - Use Azure Key Vault in production
+- **Rotate secrets regularly** - Follow your organization's security policies
