@@ -21,6 +21,8 @@
   "homepage": "https://github.com/sagearbor/test-llm-apis#readme",
   "dependencies": {
     "@azure/msal-node": "^3.8.0",
+    "@langchain/core": "0.1.52",
+    "@langchain/openai": "0.0.19",
     "adm-zip": "^0.5.16",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
