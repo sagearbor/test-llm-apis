@@ -59,6 +59,28 @@
     }
 
     /**
+     * Generate a short model label from deployment name
+     * @param {string} deploymentName - Model deployment name (e.g., 'gpt-5-nano')
+     * @returns {string} Short label (e.g., 'gpt·nano')
+     */
+    function getModelLabel(deploymentName) {
+      if (!deploymentName) return 'gpt';
+
+      // Extract short name from deployment
+      const name = deploymentName.toLowerCase();
+
+      // Map deployment names to short labels
+      if (name.includes('codex')) return 'gpt·codex';
+      if (name.includes('nano')) return 'gpt·nano';
+      if (name.includes('mini')) return 'gpt·mini';
+      if (name === 'gpt-5') return 'gpt·5';
+      if (name.includes('4.1')) return 'gpt·4.1';
+
+      // Fallback: use deployment name as-is
+      return 'gpt·' + name.replace('gpt-', '').replace('-', '');
+    }
+
+    /**
      * Update the summary badge display
      * @param {number} messageCount - Current number of messages
      * @param {boolean} hasSummary - Whether conversation has been compressed
@@ -590,7 +612,10 @@ Best for: ${metadata.specialties || 'N/A'}`;
         }
 
         const answer = data.answer || '(empty response from chat model)';
-        chatbox.innerHTML += `<div class='bot'><strong>Bot:</strong> ${answer}</div>`;
+
+        // Get model label from actual model called by Azure
+        const modelLabel = getModelLabel(data.modelCalled || data.deploymentName);
+        chatbox.innerHTML += `<div class='bot'><strong>${modelLabel}:</strong> ${answer}</div>`;
         chatbox.scrollTop = chatbox.scrollHeight;
 
         // Handle memory info if present
@@ -605,7 +630,7 @@ Best for: ${metadata.specialties || 'N/A'}`;
         }
       } catch (err) {
         console.error('Chat error:', err);
-        chatbox.innerHTML += `<div class='bot'><strong>Bot:</strong> Error: ${err.message}</div>`;
+        chatbox.innerHTML += `<div class='bot'><strong>error:</strong> ${err.message}</div>`;
       }
     }
 
