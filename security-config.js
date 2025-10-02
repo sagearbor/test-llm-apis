@@ -59,19 +59,25 @@ export function getCorsConfig() {
  * Configure Helmet.js for security headers
  */
 export function getHelmetConfig() {
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+
+  // In development, disable CSP entirely for easier testing
+  // In production, use a balanced policy that allows the app to work
   return helmet({
-    contentSecurityPolicy: {
+    contentSecurityPolicy: isDevelopment ? false : {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles for simplicity
-        scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts (consider removing in production)
+        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Allow inline scripts and eval
+        scriptSrcAttr: ["'unsafe-inline'"], // Allow onclick and other inline handlers
         imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'"],
-        fontSrc: ["'self'"],
+        connectSrc: ["'self'", "https:"], // Allow HTTPS connections for APIs
+        fontSrc: ["'self'", "data:"],
         objectSrc: ["'none'"],
         mediaSrc: ["'self'"],
         frameSrc: ["'none'"],
       },
+      reportOnly: false // Set to true to test CSP without blocking
     },
     crossOriginEmbedderPolicy: true,
     crossOriginOpenerPolicy: true,
