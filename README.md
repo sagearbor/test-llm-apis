@@ -10,6 +10,27 @@ A simple web interface for testing multiple Azure OpenAI model deployments with 
 - **Low-Cost Health Checks**: Minimal token usage for connection testing
 - **OAuth Authentication**: Optional Azure AD integration for secure access
 - **Production Ready**: NGINX configuration and systemd service included
+- **Enterprise Security**: Comprehensive security hardening with strict CSP, rate limiting, and input sanitization
+
+## 🔒 Security Features
+
+This application implements **enterprise-grade security** with multiple layers of protection:
+
+### Security Implementations
+- **Strict Content Security Policy (CSP)** - Blocks all inline scripts and unsafe JavaScript execution
+- **Complete XSS Protection** - No inline event handlers, all JavaScript externalized to `app.js`
+- **CORS Configuration** - Controlled cross-origin access with configurable allowed origins
+- **Rate Limiting** - DDoS protection with configurable limits (10 req/min production, 100 dev)
+- **Input Sanitization** - Protection against NoSQL injection and malicious payloads
+- **Security Headers** - Full Helmet.js implementation including HSTS, X-Frame-Options, etc.
+- **Session Security** - Cryptographically secure sessions with httpOnly, sameSite cookies
+- **HTTPS Enforcement** - Automatic redirect and HSTS in production
+- **Authentication** - Optional Azure AD OAuth integration
+- **Secrets Management** - Environment-based configuration, no hardcoded secrets
+
+### Security Documentation
+- **Full Security Guide**: [SECURITY.md](SECURITY.md) - Comprehensive security documentation
+- **Security Audit**: [SECURITY_AUDIT.md](SECURITY_AUDIT.md) - Complete audit checklist for IT teams
 
 ## Deployment Options
 
@@ -22,7 +43,6 @@ A simple web interface for testing multiple Azure OpenAI model deployments with 
 - **Local Development**: Quick start guide below
 - **Azure Web App**: See [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)
 - **Linux VM/Server**: See [docs/VM_DEPLOYMENT.md](docs/VM_DEPLOYMENT.md)
-- **Security Guide**: See [docs/SECURITY_CHECKLIST.md](docs/SECURITY_CHECKLIST.md)
 
 ## Prerequisites
 
@@ -183,13 +203,18 @@ Endpoint: `/openai/deployments/{deployment}/responses`
 - No conversation history is maintained (each message is independent)
 - You can disable automatic health checks by removing the `window.addEventListener` in `index.html`
 
-## Security Notes
+## Production Deployment
 
-- Never commit your `.env` file to git
-- Keep your API keys secure
-- The `.env` file is already in `.gitignore`
+This application is **production-ready** with enterprise-grade security implementations. When deploying to production:
 
-## Notes
+1. Set `NODE_ENV=production` to enable all security features
+2. Configure `SESSION_SECRET` with a cryptographically secure value
+3. Set `ALLOWED_ORIGINS` for CORS protection
+4. Enable HTTPS (automatic redirect enforced in production)
+5. Review [SECURITY.md](SECURITY.md) for complete deployment checklist
 
-* This app is for testing only and not production‑ready.
-* Do **not** commit your real `.env` file to GitHub.
+## Important Security Notes
+
+- **Never commit your `.env` file** - It's already in `.gitignore`
+- **Keep API keys secure** - Use Azure Key Vault in production
+- **Rotate secrets regularly** - Follow your organization's security policies
