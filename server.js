@@ -29,6 +29,15 @@ import { upload, rateLimitUpload, getUploadDir } from './upload-middleware.js';
 import { processFile } from './file-processor.js';
 import { startCleanupService, stopCleanupService, cleanupSession } from './cleanup-service.js';
 import { applySecurityMiddleware, getEnvironmentConfig } from './security-config.js';
+import { recordUsage, extractTokenCounts, checkRateLimits } from './usage-tracker.js';
+import {
+  getUserSummary,
+  getHourlyUsage,
+  getDailyUsage,
+  getCostByModel,
+  getAllUsersSummary,
+  isAdmin
+} from './usage-analytics.js';
 
 dotenv.config();
 
@@ -519,6 +528,10 @@ app.delete('/api/files/:fileId', requireAuth, async (req, res) => {
 app.post('/chat', requireAuth, async (req, res) => {
   const { prompt, model, fileId, maxTokens } = req.body;
 
+  // Get user info for usage tracking
+  const userEmail = req.session?.account?.username || 'anonymous';
+  const userId = req.session?.account?.homeAccountId || 'anonymous';
+
   // Input validation
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ answer: 'Please provide a valid message.' });
@@ -526,6 +539,19 @@ app.post('/chat', requireAuth, async (req, res) => {
 
   if (!model || typeof model !== 'string') {
     return res.status(400).json({ answer: 'Please select a valid model.' });
+  }
+
+  // Check rate limits before proceeding
+  if (isOAuthEnabled()) {
+    const rateLimitCheck = await checkRateLimits(userEmail);
+    if (!rateLimitCheck.allowed) {
+      return res.status(429).json({
+        answer: `Rate limit exceeded. Usage: ${rateLimitCheck.usage.hourlyTokens} tokens/hour, $${rateLimitCheck.usage.hourlyCost}/hour. Limits: ${rateLimitCheck.limits.hourly_tokens} tokens/hour, $${rateLimitCheck.limits.hourly_cost}/hour.`,
+        rateLimitExceeded: true,
+        usage: rateLimitCheck.usage,
+        limits: rateLimitCheck.limits
+      });
+    }
   }
 
   // Sanitize prompt (basic XSS prevention, though we're not rendering HTML)
@@ -650,6 +676,23 @@ app.post('/chat', requireAuth, async (req, res) => {
     if (!response.ok) {
       // Enhanced error message with troubleshooting info
       const errorMsg = data.error?.message || JSON.stringify(data);
+
+      // Record failed request
+      if (isOAuthEnabled()) {
+        await recordUsage({
+          userEmail,
+          userId,
+          model,
+          deployment: deploymentName,
+          inputTokens: 0,
+          outputTokens: 0,
+          sessionId: req.session?.id,
+          fileAttached: !!fileId,
+          success: false,
+          errorMessage: errorMsg
+        });
+      }
+
       throw new Error(`${errorMsg}. Deployment: ${deploymentName}, API: ${apiPath}, Version: ${apiVersion}`);
     }
 
@@ -662,16 +705,44 @@ app.post('/chat', requireAuth, async (req, res) => {
         answer = data.choices?.[0]?.message?.content || '(empty response from chat model)';
     }
 
+    // Extract token counts for usage tracking
+    const tokenCounts = extractTokenCounts(data, isCodexModel);
+
+    // Record usage to CSV
+    if (isOAuthEnabled()) {
+      const costs = await recordUsage({
+        userEmail,
+        userId,
+        model,
+        deployment: deploymentName,
+        inputTokens: tokenCounts.prompt_tokens,
+        outputTokens: tokenCounts.completion_tokens,
+        sessionId: req.session?.id,
+        fileAttached: !!fileId,
+        success: true,
+        errorMessage: ''
+      });
+
+      console.log(`Usage recorded: ${userEmail} - ${tokenCounts.total_tokens} tokens, $${costs.totalCost}`);
+    }
+
     // Add assistant response to conversation memory
     memory.addMessage('assistant', answer);
 
     console.log('Extracted answer:', answer);
     console.log('Memory info:', JSON.stringify(memoryInfo));
 
-    // Return answer with memory info
+    // Return answer with memory info and usage
     const responseData = { answer };
     if (memoryInfo) {
       responseData.memory = memoryInfo;
+    }
+    if (isOAuthEnabled() && tokenCounts.total_tokens > 0) {
+      responseData.usage = {
+        tokens: tokenCounts.total_tokens,
+        inputTokens: tokenCounts.prompt_tokens,
+        outputTokens: tokenCounts.completion_tokens
+      };
     }
 
     console.log('Sending response:', JSON.stringify(responseData));
@@ -679,6 +750,111 @@ app.post('/chat', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Fetch error:', error);
     res.status(500).json({ answer: `Azure OpenAI Error: ${error.message}` });
+  }
+});
+
+// ============================================================================
+// Usage Analytics Endpoints
+// ============================================================================
+
+// Get current user's usage summary
+app.get('/api/usage/summary', requireAuth, async (req, res) => {
+  try {
+    const userEmail = req.session?.account?.username || 'anonymous';
+    const { startDate, endDate } = req.query;
+
+    const summary = await getUserSummary(
+      userEmail,
+      startDate ? new Date(startDate) : null,
+      endDate ? new Date(endDate) : null
+    );
+
+    res.json(summary);
+  } catch (error) {
+    console.error('Error getting usage summary:', error);
+    res.status(500).json({ error: 'Failed to get usage summary' });
+  }
+});
+
+// Get hourly usage breakdown
+app.get('/api/usage/hourly', requireAuth, async (req, res) => {
+  try {
+    const userEmail = req.session?.account?.username || 'anonymous';
+    const hoursBack = parseInt(req.query.hours) || 24;
+
+    const hourlyData = await getHourlyUsage(userEmail, hoursBack);
+    res.json(hourlyData);
+  } catch (error) {
+    console.error('Error getting hourly usage:', error);
+    res.status(500).json({ error: 'Failed to get hourly usage' });
+  }
+});
+
+// Get daily usage breakdown
+app.get('/api/usage/daily', requireAuth, async (req, res) => {
+  try {
+    const userEmail = req.session?.account?.username || 'anonymous';
+    const daysBack = parseInt(req.query.days) || 30;
+
+    const dailyData = await getDailyUsage(userEmail, daysBack);
+    res.json(dailyData);
+  } catch (error) {
+    console.error('Error getting daily usage:', error);
+    res.status(500).json({ error: 'Failed to get daily usage' });
+  }
+});
+
+// Get cost breakdown by model
+app.get('/api/usage/costs', requireAuth, async (req, res) => {
+  try {
+    const userEmail = req.session?.account?.username || 'anonymous';
+    const { startDate, endDate } = req.query;
+
+    const costs = await getCostByModel(
+      userEmail,
+      startDate ? new Date(startDate) : null,
+      endDate ? new Date(endDate) : null
+    );
+
+    res.json(costs);
+  } catch (error) {
+    console.error('Error getting cost breakdown:', error);
+    res.status(500).json({ error: 'Failed to get cost breakdown' });
+  }
+});
+
+// Get current rate limit status
+app.get('/api/usage/limits', requireAuth, async (req, res) => {
+  try {
+    const userEmail = req.session?.account?.username || 'anonymous';
+    const limitStatus = await checkRateLimits(userEmail);
+    res.json(limitStatus);
+  } catch (error) {
+    console.error('Error checking rate limits:', error);
+    res.status(500).json({ error: 'Failed to check rate limits' });
+  }
+});
+
+// Admin endpoint - get all users' usage
+app.get('/api/admin/usage', requireAuth, async (req, res) => {
+  try {
+    const userEmail = req.session?.account?.username || 'anonymous';
+
+    // Check if user is admin
+    if (!isAdmin(userEmail)) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { startDate, endDate } = req.query;
+    const allUsersData = await getAllUsersSummary(
+      startDate ? new Date(startDate) : null,
+      endDate ? new Date(endDate) : null
+    );
+
+    res.json(allUsersData);
+  } catch (error) {
+    console.error('Error getting all users usage:', error);
+    res.status(500).json({ error: 'Failed to get all users usage' });
   }
 });
 

@@ -91,12 +91,354 @@
       badge.style.display = 'none';
     }
 
+    // ============================================================================
+    // Usage Dashboard Functions
+    // ============================================================================
+
+    let usageModal = null;
+    let currentUsageTab = 'summary';
+
+    /**
+     * Initialize usage dashboard
+     */
+    function initUsageDashboard() {
+      usageModal = document.getElementById('usageModal');
+      const usageBtn = document.getElementById('usageButton');
+      const closeBtn = document.getElementById('closeUsageModal');
+      const usageBtnContainer = document.getElementById('usageButtonContainer');
+
+      // Show usage button if OAuth is enabled
+      checkAuthStatus().then(status => {
+        if (status.oauthEnabled) {
+          usageBtnContainer.style.display = 'block';
+        }
+      });
+
+      // Open modal
+      if (usageBtn) {
+        usageBtn.addEventListener('click', () => {
+          openUsageModal();
+        });
+      }
+
+      // Close modal
+      if (closeBtn) {
+        closeBtn.addEventListener('click', closeUsageModal);
+      }
+
+      // Close on outside click
+      window.addEventListener('click', (event) => {
+        if (event.target === usageModal) {
+          closeUsageModal();
+        }
+      });
+
+      // Tab switching
+      document.querySelectorAll('.usage-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          const tabName = tab.getAttribute('data-tab');
+          switchUsageTab(tabName);
+        });
+      });
+    }
+
+    /**
+     * Open usage modal and load data
+     */
+    async function openUsageModal() {
+      if (usageModal) {
+        usageModal.style.display = 'block';
+        await loadUsageData(currentUsageTab);
+      }
+    }
+
+    /**
+     * Close usage modal
+     */
+    function closeUsageModal() {
+      if (usageModal) {
+        usageModal.style.display = 'none';
+      }
+    }
+
+    /**
+     * Switch usage tab
+     */
+    function switchUsageTab(tabName) {
+      currentUsageTab = tabName;
+
+      // Update tab buttons
+      document.querySelectorAll('.usage-tab').forEach(tab => {
+        if (tab.getAttribute('data-tab') === tabName) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+
+      // Update content
+      document.querySelectorAll('.usage-content').forEach(content => {
+        if (content.id === `${tabName}-content`) {
+          content.classList.add('active');
+        } else {
+          content.classList.remove('active');
+        }
+      });
+
+      // Load data for the tab
+      loadUsageData(tabName);
+    }
+
+    /**
+     * Load usage data based on tab
+     */
+    async function loadUsageData(tabName) {
+      try {
+        switch(tabName) {
+          case 'summary':
+            await loadSummaryData();
+            break;
+          case 'hourly':
+            await loadHourlyData();
+            break;
+          case 'daily':
+            await loadDailyData();
+            break;
+          case 'models':
+            await loadModelData();
+            break;
+          case 'limits':
+            await loadRateLimitData();
+            break;
+        }
+      } catch (error) {
+        console.error(`Error loading ${tabName} data:`, error);
+        showToast(`Failed to load ${tabName} data`, 3000);
+      }
+    }
+
+    /**
+     * Load and display summary data
+     */
+    async function loadSummaryData() {
+      const response = await fetch('/api/usage/summary');
+      const data = await response.json();
+
+      const container = document.getElementById('summaryStats');
+      container.innerHTML = `
+        <div class="usage-stat">
+          <div class="usage-stat-label">Total Requests</div>
+          <div class="usage-stat-value">${data.totalRequests.toLocaleString()}</div>
+        </div>
+        <div class="usage-stat">
+          <div class="usage-stat-label">Total Tokens</div>
+          <div class="usage-stat-value">${(data.totalTokens / 1000).toFixed(1)}<span class="usage-stat-unit">K</span></div>
+        </div>
+        <div class="usage-stat">
+          <div class="usage-stat-label">Total Cost</div>
+          <div class="usage-stat-value">$${data.totalCost.toFixed(2)}</div>
+        </div>
+        <div class="usage-stat">
+          <div class="usage-stat-label">Success Rate</div>
+          <div class="usage-stat-value">${data.totalRequests > 0 ? Math.round(data.successfulRequests / data.totalRequests * 100) : 0}<span class="usage-stat-unit">%</span></div>
+        </div>
+      `;
+
+      // Add model breakdown
+      if (Object.keys(data.modelUsage).length > 0) {
+        container.innerHTML += '<h4>Usage by Model</h4>';
+        container.innerHTML += '<table class="usage-table">';
+        container.innerHTML += '<thead><tr><th>Model</th><th>Requests</th><th>Tokens</th><th>Cost</th></tr></thead>';
+        container.innerHTML += '<tbody>';
+
+        for (const [model, usage] of Object.entries(data.modelUsage)) {
+          container.innerHTML += `
+            <tr>
+              <td>${model}</td>
+              <td>${usage.requests}</td>
+              <td>${(usage.tokens / 1000).toFixed(1)}K</td>
+              <td>$${usage.cost.toFixed(4)}</td>
+            </tr>
+          `;
+        }
+
+        container.innerHTML += '</tbody></table>';
+      }
+    }
+
+    /**
+     * Load and display hourly data
+     */
+    async function loadHourlyData() {
+      const response = await fetch('/api/usage/hourly');
+      const data = await response.json();
+
+      const container = document.getElementById('hourlyChart');
+      container.innerHTML = '<table class="usage-table">';
+      container.innerHTML += '<thead><tr><th>Hour</th><th>Requests</th><th>Tokens</th><th>Cost</th></tr></thead>';
+      container.innerHTML += '<tbody>';
+
+      data.forEach(hour => {
+        const hourLabel = new Date(hour.hour + ':00:00').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        container.innerHTML += `
+          <tr>
+            <td>${hourLabel}</td>
+            <td>${hour.requests}</td>
+            <td>${hour.tokens > 0 ? (hour.tokens / 1000).toFixed(1) + 'K' : '-'}</td>
+            <td>${hour.cost > 0 ? '$' + hour.cost.toFixed(4) : '-'}</td>
+          </tr>
+        `;
+      });
+
+      container.innerHTML += '</tbody></table>';
+    }
+
+    /**
+     * Load and display daily data
+     */
+    async function loadDailyData() {
+      const response = await fetch('/api/usage/daily');
+      const data = await response.json();
+
+      const container = document.getElementById('dailyChart');
+      container.innerHTML = '<table class="usage-table">';
+      container.innerHTML += '<thead><tr><th>Date</th><th>Requests</th><th>Tokens</th><th>Cost</th></tr></thead>';
+      container.innerHTML += '<tbody>';
+
+      data.forEach(day => {
+        const dateLabel = new Date(day.date).toLocaleDateString();
+        container.innerHTML += `
+          <tr>
+            <td>${dateLabel}</td>
+            <td>${day.requests}</td>
+            <td>${day.tokens > 0 ? (day.tokens / 1000).toFixed(1) + 'K' : '-'}</td>
+            <td>${day.cost > 0 ? '$' + day.cost.toFixed(2) : '-'}</td>
+          </tr>
+        `;
+      });
+
+      container.innerHTML += '</tbody></table>';
+    }
+
+    /**
+     * Load and display model cost data
+     */
+    async function loadModelData() {
+      const response = await fetch('/api/usage/costs');
+      const data = await response.json();
+
+      const container = document.getElementById('modelStats');
+      container.innerHTML = '<table class="usage-table">';
+      container.innerHTML += '<thead><tr><th>Model</th><th>Requests</th><th>Input Tokens</th><th>Output Tokens</th><th>Input Cost</th><th>Output Cost</th><th>Total Cost</th></tr></thead>';
+      container.innerHTML += '<tbody>';
+
+      data.forEach(model => {
+        container.innerHTML += `
+          <tr>
+            <td>${model.model}</td>
+            <td>${model.requests}</td>
+            <td>${(model.inputTokens / 1000).toFixed(1)}K</td>
+            <td>${(model.outputTokens / 1000).toFixed(1)}K</td>
+            <td>$${model.inputCost.toFixed(4)}</td>
+            <td>$${model.outputCost.toFixed(4)}</td>
+            <td>$${model.totalCost.toFixed(4)}</td>
+          </tr>
+        `;
+      });
+
+      container.innerHTML += '</tbody></table>';
+    }
+
+    /**
+     * Load and display rate limit data
+     */
+    async function loadRateLimitData() {
+      const response = await fetch('/api/usage/limits');
+      const data = await response.json();
+
+      const container = document.getElementById('rateLimits');
+      container.innerHTML = '';
+
+      // Hourly limits
+      const hourlyTokenPercent = (data.usage.hourlyTokens / data.limits.hourly_tokens * 100).toFixed(1);
+      const hourlyCostPercent = (data.usage.hourlyCost / data.limits.hourly_cost * 100).toFixed(1);
+
+      container.innerHTML += `
+        <div class="rate-limit-bar">
+          <div class="rate-limit-label">Hourly Token Usage</div>
+          <div class="rate-limit-progress">
+            <div class="rate-limit-fill ${hourlyTokenPercent > 80 ? 'danger' : hourlyTokenPercent > 60 ? 'warning' : ''}" style="width: ${Math.min(100, hourlyTokenPercent)}%"></div>
+            <div class="rate-limit-text">${data.usage.hourlyTokens.toLocaleString()} / ${data.limits.hourly_tokens.toLocaleString()} (${hourlyTokenPercent}%)</div>
+          </div>
+        </div>
+
+        <div class="rate-limit-bar">
+          <div class="rate-limit-label">Hourly Cost Usage</div>
+          <div class="rate-limit-progress">
+            <div class="rate-limit-fill ${hourlyCostPercent > 80 ? 'danger' : hourlyCostPercent > 60 ? 'warning' : ''}" style="width: ${Math.min(100, hourlyCostPercent)}%"></div>
+            <div class="rate-limit-text">$${data.usage.hourlyCost.toFixed(2)} / $${data.limits.hourly_cost.toFixed(2)} (${hourlyCostPercent}%)</div>
+          </div>
+        </div>
+      `;
+
+      // Daily limits
+      const dailyTokenPercent = (data.usage.dailyTokens / data.limits.daily_tokens * 100).toFixed(1);
+      const dailyCostPercent = (data.usage.dailyCost / data.limits.daily_cost * 100).toFixed(1);
+
+      container.innerHTML += `
+        <div class="rate-limit-bar">
+          <div class="rate-limit-label">Daily Token Usage</div>
+          <div class="rate-limit-progress">
+            <div class="rate-limit-fill ${dailyTokenPercent > 80 ? 'danger' : dailyTokenPercent > 60 ? 'warning' : ''}" style="width: ${Math.min(100, dailyTokenPercent)}%"></div>
+            <div class="rate-limit-text">${data.usage.dailyTokens.toLocaleString()} / ${data.limits.daily_tokens.toLocaleString()} (${dailyTokenPercent}%)</div>
+          </div>
+        </div>
+
+        <div class="rate-limit-bar">
+          <div class="rate-limit-label">Daily Cost Usage</div>
+          <div class="rate-limit-progress">
+            <div class="rate-limit-fill ${dailyCostPercent > 80 ? 'danger' : dailyCostPercent > 60 ? 'warning' : ''}" style="width: ${Math.min(100, dailyCostPercent)}%"></div>
+            <div class="rate-limit-text">$${data.usage.dailyCost.toFixed(2)} / $${data.limits.daily_cost.toFixed(2)} (${dailyCostPercent}%)</div>
+          </div>
+        </div>
+      `;
+
+      // Remaining
+      container.innerHTML += `
+        <h4>Remaining Allowance</h4>
+        <div class="usage-stat">
+          <div class="usage-stat-label">Hourly Tokens</div>
+          <div class="usage-stat-value">${(data.remaining.hourlyTokens / 1000).toFixed(1)}<span class="usage-stat-unit">K</span></div>
+        </div>
+        <div class="usage-stat">
+          <div class="usage-stat-label">Hourly Budget</div>
+          <div class="usage-stat-value">$${data.remaining.hourlyCost.toFixed(2)}</div>
+        </div>
+        <div class="usage-stat">
+          <div class="usage-stat-label">Daily Tokens</div>
+          <div class="usage-stat-value">${(data.remaining.dailyTokens / 1000).toFixed(1)}<span class="usage-stat-unit">K</span></div>
+        </div>
+        <div class="usage-stat">
+          <div class="usage-stat-label">Daily Budget</div>
+          <div class="usage-stat-value">$${data.remaining.dailyCost.toFixed(2)}</div>
+        </div>
+      `;
+    }
+
     // Check authentication status
     async function checkAuthStatus() {
       try {
         const response = await fetch('/api/auth/status');
         const data = await response.json();
+        return data;
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+        return { oauthEnabled: false, isAuthenticated: false };
+      }
+    }
 
+    // Initialize auth check
+    checkAuthStatus().then(data => {
         if (data.oauthEnabled && !data.isAuthenticated) {
           // Redirect to login page if OAuth is enabled and user is not authenticated
           window.location.href = '/login.html';
@@ -422,6 +764,7 @@ Best for: ${metadata.specialties || 'N/A'}`;
       await loadUploadedFiles();
       await loadServerConfig();
       checkHealth();
+      initUsageDashboard(); // Initialize usage dashboard
 
       // Update context window when model changes
       const modelSelect = document.getElementById('modelSelect');
