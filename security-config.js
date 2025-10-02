@@ -11,7 +11,6 @@
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import mongoSanitize from 'express-mongo-sanitize';
 
 /**
  * Get CORS configuration based on environment
@@ -123,15 +122,45 @@ export function createStrictRateLimiter() {
 }
 
 /**
- * Input sanitization middleware
+ * Input sanitization middleware - custom implementation for Express 5 compatibility
+ * Note: Express 5 makes req.query and req.params read-only, so we only sanitize req.body
  */
 export function getSanitizer() {
-  return mongoSanitize({
-    replaceWith: '_', // Replace prohibited characters with underscore
-    onSanitize: ({ req, key }) => {
-      console.warn(`Sanitized potentially malicious input in ${key} from IP: ${req.ip}`);
+  return (req, res, next) => {
+    // Function to recursively sanitize objects
+    const sanitize = (obj) => {
+      if (!obj || typeof obj !== 'object') return obj;
+
+      const cleaned = Array.isArray(obj) ? [] : {};
+
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          // Skip keys that look like NoSQL injection
+          if (typeof key === 'string' && (key.startsWith('$') || key.includes('.'))) {
+            console.warn(`Blocked potentially malicious key: ${key} from IP: ${req.ip}`);
+            continue;
+          }
+
+          if (typeof obj[key] === 'string') {
+            // Remove null bytes and other dangerous characters
+            cleaned[key] = obj[key].replace(/\0/g, '').replace(/[\$]/g, '_');
+          } else if (typeof obj[key] === 'object') {
+            cleaned[key] = sanitize(obj[key]);
+          } else {
+            cleaned[key] = obj[key];
+          }
+        }
+      }
+      return cleaned;
+    };
+
+    // Only sanitize body (mutable in Express 5)
+    if (req.body && typeof req.body === 'object') {
+      req.body = sanitize(req.body);
     }
-  });
+
+    next();
+  };
 }
 
 /**
