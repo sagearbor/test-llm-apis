@@ -544,7 +544,14 @@ Best for: ${metadata.specialties || 'N/A'}`;
           body.verbosity = document.getElementById('verbosity').value;
         }
 
-        console.log('Sending request:', body);
+        // Get deployment name for logging
+        const modelInfo = modelMetadata[body.model];
+        const deploymentName = modelInfo ? modelInfo.deploymentName : 'unknown';
+        console.log('Sending request:', {
+          ...body,
+          deploymentName: deploymentName,
+          modelDisplayName: modelInfo ? modelInfo.displayName : body.model
+        });
         const response = await fetch('/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -552,6 +559,12 @@ Best for: ${metadata.specialties || 'N/A'}`;
         });
         const data = await response.json();
         console.log('Received response:', data);
+
+        // Log the actual model called by Azure (like Python's response.get("model"))
+        if (data.modelCalled) {
+          console.log('✓ Model called by Azure:', data.modelCalled);
+          console.log('  Deployment requested:', data.deploymentName || deploymentName);
+        }
 
         const answer = data.answer || '(empty response from chat model)';
         chatbox.innerHTML += `<div class='bot'><strong>Bot:</strong> ${answer}</div>`;

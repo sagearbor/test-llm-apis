@@ -759,8 +759,16 @@ app.post('/chat', requireAuth, async (req, res) => {
     console.log('Extracted answer:', answer);
     console.log('Memory info:', JSON.stringify(memoryInfo));
 
+    // Extract the actual model name from Azure response for verification
+    const actualModelUsed = data.model || deploymentName;
+    console.log('Model called by Azure:', actualModelUsed);
+
     // Return answer with memory info and usage
-    const responseData = { answer };
+    const responseData = {
+      answer,
+      modelCalled: actualModelUsed,  // Actual model returned by Azure
+      deploymentName: deploymentName  // What we requested
+    };
     if (memoryInfo) {
       responseData.memory = memoryInfo;
     }

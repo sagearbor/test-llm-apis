@@ -55,7 +55,7 @@
       flex: 1;
       font-weight: normal;
       white-space: nowrap;
-      overflow: hidden;
+      overflow: visible;
       text-overflow: ellipsis;
     }
     .status-message { font-size: 10px; color: #666; }
@@ -102,17 +102,26 @@
       content: attr(data-tooltip);
       position: absolute;
       left: 20px;
-      top: -5px;
-      background: #333;
-      color: white;
-      padding: 8px 12px;
-      border-radius: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      background-color: #2d2d2d !important;
+      color: #f0f0f0 !important;
+      padding: 14px 18px;
+      border-radius: 8px;
       white-space: pre-line;
-      font-size: 11px;
+      font-size: 14px;
       font-weight: normal;
-      z-index: 1000;
-      min-width: 250px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      line-height: 1.7;
+      letter-spacing: 0.4px;
+      z-index: 99999;
+      min-width: 320px;
+      max-width: 450px;
+      width: max-content;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 0 2px rgba(255,255,255,0.2);
+      pointer-events: none;
+      font-family: Arial, sans-serif;
+      text-align: left;
+      display: block;
     }
 
     /* File Upload Styles */
