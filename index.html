@@ -550,8 +550,38 @@ Best for: ${metadata.specialties || 'N/A'}`;
 
       // Update context window when model changes
       const modelSelect = document.getElementById('modelSelect');
+      let previousModel = modelSelect.value;
+
       modelSelect.addEventListener('change', async (e) => {
-        await updateContextWindowForModel(e.target.value);
+        const newModel = e.target.value;
+        const chatbox = document.getElementById('chatbox');
+
+        // If there's chat history, warn user before switching
+        if (chatbox.innerHTML.trim() !== '' && newModel !== previousModel) {
+          const previousModelName = modelMetadata[previousModel]?.displayName || previousModel;
+          const newModelName = modelMetadata[newModel]?.displayName || newModel;
+
+          const confirmed = confirm(
+            `⚠️ Switching Models Will Clear Conversation History\n\n` +
+            `Changing from "${previousModelName}" to "${newModelName}" will start a fresh conversation.\n` +
+            `Previous messages will be cleared.\n\n` +
+            `Click OK to clear chat and switch models, or Cancel to stay on current model.`
+          );
+
+          if (confirmed) {
+            // Clear the chat
+            chatbox.innerHTML = '';
+            previousModel = newModel;
+            await updateContextWindowForModel(newModel);
+          } else {
+            // Revert selection
+            modelSelect.value = previousModel;
+          }
+        } else {
+          // No chat history, just switch
+          previousModel = newModel;
+          await updateContextWindowForModel(newModel);
+        }
       });
 
       // Load initial context window for default model
