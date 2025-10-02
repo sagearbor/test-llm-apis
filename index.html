@@ -5,38 +5,225 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Azure OpenAI Chatbox Test</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
     select, input, button { margin: 5px 0; padding: 5px; }
-    #chatbox { border: 1px solid #ccc; height: 300px; overflow-y: auto; padding: 10px; margin-bottom: 10px; }
+    #chatbox { border: 1px solid #ccc; height: 400px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
     .user { color: blue; }
     .bot { color: green; }
-    #healthStatus { margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 5px; }
-    .status-item { margin: 10px 0; display: flex; align-items: center; justify-content: space-between; }
+
+    /* Two-column layout */
+    .two-column-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .left-column, .right-column { background: #f5f5f5; border-radius: 5px; padding: 15px; }
+
+    #healthStatus { margin: 0; padding: 0; background: transparent; }
+    #healthStatus h3 { margin: 0 0 10px 0; font-size: 16px; }
+    .status-item { margin: 5px 0; display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
     .status-indicator {
       display: inline-block;
-      width: 20px;
-      height: 20px;
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
-      margin-right: 10px;
+      margin-right: 8px;
     }
     .status-ok { background-color: #4CAF50; }
     .status-error { background-color: #f44336; }
     .status-checking { background-color: #FFC107; }
-    .status-label { flex: 1; font-weight: bold; }
-    .status-message { font-size: 0.9em; color: #666; }
+    .status-label { flex: 1; font-weight: normal; }
+    .status-message { font-size: 0.85em; color: #666; }
     .refresh-btn {
-      padding: 8px 15px;
+      padding: 4px 10px;
       background: #2196F3;
       color: white;
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      font-size: 12px;
     }
     .refresh-btn:hover { background: #0b7dda; }
+
+    .model-select-wrapper { margin-top: 15px; }
+    .model-select-wrapper label { display: block; margin-bottom: 5px; font-size: 14px; font-weight: bold; }
+    #modelSelect {
+      padding: 8px;
+      font-size: 14px;
+      animation: throb 2s ease-in-out 3;
+      flex: 1;  /* Allow it to shrink for badge */
+    }
+    @keyframes throb {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 rgba(33, 150, 243, 0); }
+      50% { transform: scale(1.05); box-shadow: 0 0 10px rgba(33, 150, 243, 0.5); }
+    }
+
+    .info-icon {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      line-height: 14px;
+      text-align: center;
+      border: 1px solid #2196F3;
+      border-radius: 50%;
+      color: #2196F3;
+      font-size: 10px;
+      font-weight: bold;
+      cursor: help;
+      margin-left: 5px;
+      position: relative;
+    }
+    .info-icon:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 20px;
+      top: -5px;
+      background: #333;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      white-space: pre-line;
+      font-size: 11px;
+      font-weight: normal;
+      z-index: 1000;
+      min-width: 250px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    /* File Upload Styles */
+    #fileUploadArea {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+    }
+    #fileUploadArea h3 { margin: 0 0 8px 0; font-size: 16px; }
+    .file-drop-zone {
+      padding: 15px;
+      border: 2px dashed #ccc;
+      border-radius: 5px;
+      background: white;
+      text-align: center;
+      transition: all 0.3s;
+      margin-bottom: 10px;
+    }
+    .file-drop-zone.dragover {
+      border-color: #2196F3;
+      background: #e3f2fd;
+    }
+    .upload-btn {
+      padding: 6px 12px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .upload-btn:hover { background: #45a049; }
+    #filesList {
+      margin: 0;
+      padding: 0;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      margin: 4px 0;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      font-size: 12px;
+    }
+    .file-item.selected {
+      background: #e3f2fd;
+      border-color: #2196F3;
+    }
+    .file-name {
+      flex: 1;
+      cursor: pointer;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .file-size {
+      color: #666;
+      font-size: 11px;
+      margin: 0 6px;
+    }
+    .delete-btn {
+      padding: 2px 6px;
+      background: #f44336;
+      color: white;
+      border: none;
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 10px;
+    }
+    .delete-btn:hover { background: #da190b; }
+    .file-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #2196F3;
+      color: white;
+      border-radius: 3px;
+      font-size: 11px;
+      margin-left: 5px;
+    }
+
+    /* Toast Notification Styles */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #333;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 4px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      font-size: 14px;
+      z-index: 10000;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Conversation Summary Badge */
+    .summary-badge {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 3px 8px;
+      background: #4CAF50;
+      color: white;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: help;
+      position: relative;
+    }
+    .summary-badge:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 0;
+      bottom: 100%;
+      margin-bottom: 5px;
+      background: #333;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: normal;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
   </style>
 </head>
 <body>
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
     <h1 style="margin: 0;">Azure OpenAI Chatbox Test</h1>
     <div id="userInfo" style="display: none;">
       <span id="userName" style="margin-right: 10px; color: #666;"></span>
@@ -44,26 +231,136 @@
     </div>
   </div>
 
-  <div id="healthStatus">
-    <h3>Model Connection Status <button class="refresh-btn" onclick="checkHealth()">Refresh</button></h3>
-    <div id="statusList">Checking connections...</div>
+  <!-- Two Column Layout -->
+  <div class="two-column-container">
+    <!-- Left Column: Model Status & Selection -->
+    <div class="left-column">
+      <div id="healthStatus">
+        <h3>Model Connection Status <button class="refresh-btn" onclick="checkHealth()">Refresh</button></h3>
+        <div id="statusList">Checking connections...</div>
+      </div>
+
+      <div class="model-select-wrapper">
+        <label for="modelSelect">Choose Model:</label>
+        <div style="display: flex; align-items: center;">
+          <select id="modelSelect" style="flex: 1;">
+            <option value="coding_llm_api">Coding LLM</option>
+            <option value="smallest_llm_api" selected>Smallest LLM</option>
+            <option value="allaround_llm_api">All-Around LLM</option>
+            <option value="best_llm_api">Best LLM</option>
+            <option value="longest_llm_api">Longest LLM</option>
+          </select>
+          <span id="summaryBadge" class="summary-badge" style="display: none;" data-tooltip="Conversation history compressed"></span>
+        </div>
+        <div style="margin-top: 12px;">
+          <label for="tokenSlider" style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 4px;">Response Length (tokens):</label>
+          <input type="range" id="tokenSlider" min="1000" max="50000" value="10000" step="1000" style="width: 100%; margin-bottom: 4px;">
+          <div id="tokenConfig" style="font-size: 11px; color: #666;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: File Upload -->
+    <div class="right-column">
+      <div id="fileUploadArea">
+        <h3>📎 Upload File (Optional)</h3>
+        <div class="file-drop-zone" id="fileDropZone">
+          <input type="file" id="fileInput" style="display: none;" onchange="uploadFile()" />
+          <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Choose File</button>
+          <span style="font-size: 12px; color: #666; margin-left: 8px;">or drag & drop</span>
+        </div>
+        <div id="filesList"></div>
+      </div>
+    </div>
   </div>
 
-  <label for="modelSelect">Choose Model:</label>
-  <select id="modelSelect">
-    <option value="coding_llm_api">Coding LLM</option>
-    <option value="smallest_llm_api">Smallest LLM</option>
-    <option value="allaround_llm_api">All-Around LLM</option>
-    <option value="best_llm_api">Best LLM</option>
-  </select>
+  <div style="margin-bottom: 10px;">
+    <input type="text" id="userInput" placeholder="Type your question here..." style="width: calc(100% - 80px); padding: 10px; font-size: 14px;" onkeypress="if(event.key === 'Enter') sendMessage()" />
+    <button onclick="sendMessage()" style="padding: 10px 20px; font-size: 14px;">Send</button>
+  </div>
 
   <div id="chatbox"></div>
 
-  <input type="text" id="userInput" placeholder="Type your question here..." />
-  <button onclick="sendMessage()">Send</button>
+  <!-- Toast Notification Container -->
+  <div id="toastContainer"></div>
 
   <script>
     let modelMetadata = {};
+    let uploadedFiles = [];
+    let selectedFileId = null;
+    let maxCompletionTokens = 12800; // Default, will be updated by slider
+    let currentInputContextWindow = 128 * 1024; // Default 128K, updated per model
+    let currentOutputContextWindow = 128 * 1024;
+
+    // ============================================================================
+    // Toast Notification System
+    // ============================================================================
+
+    let toastTimeout = null;
+
+    /**
+     * Show a toast notification
+     * @param {string} message - Message to display
+     * @param {number} duration - Duration in milliseconds (default: 2000)
+     */
+    function showToast(message, duration = 2000) {
+      const container = document.getElementById('toastContainer');
+
+      // Remove existing toast if any
+      const existing = document.querySelector('.toast');
+      if (existing) {
+        existing.remove();
+        clearTimeout(toastTimeout);
+      }
+
+      // Create new toast
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      // Trigger animation
+      setTimeout(() => toast.classList.add('show'), 10);
+
+      // Auto-hide after duration
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300); // Remove after fade out
+      }, duration);
+    }
+
+    /**
+     * Update the summary badge display
+     * @param {number} messageCount - Current number of messages
+     * @param {boolean} hasSummary - Whether conversation has been compressed
+     */
+    function updateSummaryBadge(messageCount, hasSummary) {
+      const badge = document.getElementById('summaryBadge');
+
+      if (messageCount > 0) {
+        badge.style.display = 'inline-block';
+
+        if (hasSummary) {
+          badge.textContent = `📝 ${messageCount} msgs`;
+          badge.setAttribute('data-tooltip', `Conversation compressed (${messageCount} recent messages + summary)`);
+          badge.style.background = '#4CAF50';  // Green when compressed
+        } else {
+          badge.textContent = `💬 ${messageCount} msgs`;
+          badge.setAttribute('data-tooltip', `${messageCount} messages in conversation`);
+          badge.style.background = '#2196F3';  // Blue when not compressed
+        }
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    /**
+     * Hide the summary badge
+     */
+    function hideSummaryBadge() {
+      const badge = document.getElementById('summaryBadge');
+      badge.style.display = 'none';
+    }
 
     // Check authentication status
     async function checkAuthStatus() {
@@ -119,10 +416,20 @@
           const displayName = metadata.displayName || modelKey;
           const deploymentName = result.deploymentName || 'Not configured';
 
+          // Build tooltip content
+          const inputCtxK = metadata.inputContextWindow ? (metadata.inputContextWindow / 1024).toFixed(0) + 'K' : 'N/A';
+          const outputCtxK = metadata.outputContextWindow ? (metadata.outputContextWindow / 1024).toFixed(0) + 'K' : 'N/A';
+          const contextDisplay = inputCtxK === outputCtxK ? inputCtxK : `${inputCtxK} in / ${outputCtxK} out`;
+
+          const tooltip = `Context: ${contextDisplay} tokens
+Cost: ${metadata.costPer1M || 'N/A'}
+Multimodal: ${metadata.multimodal ? 'Yes' : 'No'}
+Best for: ${metadata.specialties || 'N/A'}`;
+
           html += `<div class="status-item">
             <div style="display: flex; align-items: center; flex: 1;">
               <span class="status-indicator ${statusClass}"></span>
-              <span class="status-label">${displayName} (${deploymentName})</span>
+              <span class="status-label">${displayName} (${deploymentName})<span class="info-icon" data-tooltip="${tooltip}">i</span></span>
             </div>
             <div style="text-align: right;">
               ${result.message ? `<div class="status-message">${result.message}</div>` : ''}
@@ -143,20 +450,231 @@
       const userText = input.value.trim();
       if (!userText) return;
 
-      chatbox.innerHTML += `<div class='user'><strong>You:</strong> ${userText}</div>`;
+      // Show which file is attached (if any)
+      const fileBadge = selectedFileId ?
+        `<span class="file-badge">📎 ${uploadedFiles.find(f => f.fileId === selectedFileId)?.filename || 'file'}</span>` : '';
+
+      chatbox.innerHTML += `<div class='user'><strong>You:</strong> ${userText} ${fileBadge}</div>`;
       input.value = '';
 
       try {
+        const body = {
+          prompt: userText,
+          model,
+          maxTokens: maxCompletionTokens
+        };
+        if (selectedFileId) {
+          body.fileId = selectedFileId;
+        }
+
+        console.log('Sending request:', body);
         const response = await fetch('/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: userText, model })
+          body: JSON.stringify(body)
         });
         const data = await response.json();
-        chatbox.innerHTML += `<div class='bot'><strong>Bot:</strong> ${data.answer}</div>`;
+        console.log('Received response:', data);
+
+        const answer = data.answer || '(empty response from chat model)';
+        chatbox.innerHTML += `<div class='bot'><strong>Bot:</strong> ${answer}</div>`;
         chatbox.scrollTop = chatbox.scrollHeight;
+
+        // Handle memory info if present
+        if (data.memory) {
+          // Show toast only when compression just happened
+          if (data.memory.compressed) {
+            showToast('💭 Conversation compressed', 2000);
+          }
+
+          // Always update badge with current message count
+          updateSummaryBadge(data.memory.messageCount, data.memory.hasSummary);
+        }
       } catch (err) {
+        console.error('Chat error:', err);
         chatbox.innerHTML += `<div class='bot'><strong>Bot:</strong> Error: ${err.message}</div>`;
+      }
+    }
+
+    // File upload functions
+    async function uploadFile() {
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          alert(`Upload failed: ${error.error}`);
+          return;
+        }
+
+        const data = await response.json();
+        uploadedFiles.push(data);
+        renderFilesList();
+
+        // Auto-select the newly uploaded file
+        selectedFileId = data.fileId;
+        renderFilesList();
+
+        // Clear file input
+        fileInput.value = '';
+
+      } catch (err) {
+        alert(`Upload error: ${err.message}`);
+      }
+    }
+
+    async function deleteFile(fileId) {
+      try {
+        const response = await fetch(`/api/files/${fileId}`, {
+          method: 'DELETE'
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          alert(`Delete failed: ${error.error}`);
+          return;
+        }
+
+        // Remove from local list
+        uploadedFiles = uploadedFiles.filter(f => f.fileId !== fileId);
+        if (selectedFileId === fileId) {
+          selectedFileId = null;
+        }
+        renderFilesList();
+
+      } catch (err) {
+        alert(`Delete error: ${err.message}`);
+      }
+    }
+
+    function selectFile(fileId) {
+      selectedFileId = selectedFileId === fileId ? null : fileId;
+      renderFilesList();
+    }
+
+    function renderFilesList() {
+      const filesList = document.getElementById('filesList');
+
+      if (uploadedFiles.length === 0) {
+        filesList.innerHTML = '<p style="color: #999; font-size: 13px;">No files uploaded</p>';
+        return;
+      }
+
+      let html = '<div style="text-align: left;">';
+      uploadedFiles.forEach(file => {
+        const selected = file.fileId === selectedFileId ? 'selected' : '';
+        const sizeKB = (file.size / 1024).toFixed(1);
+        html += `
+          <div class="file-item ${selected}">
+            <span class="file-name" onclick="selectFile('${file.fileId}')">
+              ${selected ? '✓ ' : ''}${file.filename}
+            </span>
+            <span class="file-size">${sizeKB} KB</span>
+            <button class="delete-btn" onclick="deleteFile('${file.fileId}')">Delete</button>
+          </div>
+        `;
+      });
+      html += '</div>';
+      filesList.innerHTML = html;
+    }
+
+    async function loadUploadedFiles() {
+      try {
+        const response = await fetch('/api/files');
+        if (response.ok) {
+          uploadedFiles = await response.json();
+          renderFilesList();
+        }
+      } catch (err) {
+        console.error('Failed to load files:', err);
+      }
+    }
+
+    // Drag and drop support
+    const fileDropZone = document.getElementById('fileDropZone');
+
+    fileDropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      fileDropZone.classList.add('dragover');
+    });
+
+    fileDropZone.addEventListener('dragleave', () => {
+      fileDropZone.classList.remove('dragover');
+    });
+
+    fileDropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      fileDropZone.classList.remove('dragover');
+
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        document.getElementById('fileInput').files = files;
+        uploadFile();
+      }
+    });
+
+    // Update token display based on slider value (absolute tokens) and current model's context window
+    function updateTokenDisplay(tokens) {
+      maxCompletionTokens = parseInt(tokens);
+      const estimatedChatTurns = Math.floor(currentInputContextWindow / (maxCompletionTokens * 2));
+      const percentageOfContext = ((maxCompletionTokens / currentInputContextWindow) * 100).toFixed(1);
+
+      const tokenConfig = document.getElementById('tokenConfig');
+      const inputCtxK = (currentInputContextWindow / 1024).toFixed(0) + 'K';
+      tokenConfig.innerHTML = `${maxCompletionTokens.toLocaleString()} tokens (${percentageOfContext}% of ${inputCtxK}, ~${estimatedChatTurns} chat turns)`;
+
+      // Save to localStorage
+      localStorage.setItem('maxCompletionTokens', tokens);
+    }
+
+    // Fetch and update context window for selected model
+    async function updateContextWindowForModel(modelKey) {
+      try {
+        const response = await fetch(`/api/config?modelKey=${modelKey}`);
+        if (response.ok) {
+          const config = await response.json();
+          currentInputContextWindow = config.inputContextWindow || 128 * 1024;
+          currentOutputContextWindow = config.outputContextWindow || 128 * 1024;
+
+          // Update token display with new context window
+          const slider = document.getElementById('tokenSlider');
+          updateTokenDisplay(parseInt(slider.value));
+        }
+      } catch (err) {
+        console.error('Failed to fetch model config:', err);
+      }
+    }
+
+    // Load server configuration and set up slider
+    async function loadServerConfig() {
+      try {
+        // Load saved preference or default to 10,000 tokens
+        const savedTokens = localStorage.getItem('maxCompletionTokens');
+        const tokens = savedTokens ? parseInt(savedTokens) : 10000;
+
+        // Set slider value
+        const slider = document.getElementById('tokenSlider');
+        slider.value = tokens;
+
+        // Update display
+        updateTokenDisplay(tokens);
+
+        // Add slider event listener
+        slider.addEventListener('input', (e) => {
+          updateTokenDisplay(parseInt(e.target.value));
+        });
+      } catch (err) {
+        console.error('Failed to load server config:', err);
       }
     }
 
@@ -164,7 +682,59 @@
     window.addEventListener('DOMContentLoaded', async () => {
       await checkAuthStatus();
       await loadModelMetadata();
+      await loadUploadedFiles();
+      await loadServerConfig();
       checkHealth();
+
+      // Update context window when model changes
+      const modelSelect = document.getElementById('modelSelect');
+      let previousModel = modelSelect.value;
+
+      modelSelect.addEventListener('change', async (e) => {
+        const newModel = e.target.value;
+        // const chatbox = document.getElementById('chatbox');
+
+        // DISABLED: Model switch warning popup (now using ConversationSummaryMemory)
+        // Previously, switching models would clear chat history with a warning dialog.
+        // Now conversation history is preserved across model switches with automatic compression.
+        //
+        // If there's chat history, warn user before switching
+        // if (chatbox.innerHTML.trim() !== '' && newModel !== previousModel) {
+        //   const previousModelName = modelMetadata[previousModel]?.displayName || previousModel;
+        //   const newModelName = modelMetadata[newModel]?.displayName || newModel;
+        //
+        //   const confirmed = confirm(
+        //     `⚠️ Switching Models Will Clear Conversation History\n\n` +
+        //     `Changing from "${previousModelName}" to "${newModelName}" will start a fresh conversation.\n` +
+        //     `Previous messages will be cleared.\n\n` +
+        //     `Click OK to clear chat and switch models, or Cancel to stay on current model.`
+        //   );
+        //
+        //   if (confirmed) {
+        //     // Clear the chat
+        //     chatbox.innerHTML = '';
+        //     previousModel = newModel;
+        //     await updateContextWindowForModel(newModel);
+        //   } else {
+        //     // Revert selection
+        //     modelSelect.value = previousModel;
+        //   }
+        // } else {
+        //   // No chat history, just switch
+        //   previousModel = newModel;
+        //   await updateContextWindowForModel(newModel);
+        // }
+
+        // NEW BEHAVIOR: Seamless model switching with conversation memory
+        previousModel = newModel;
+        await updateContextWindowForModel(newModel);
+      });
+
+      // Load initial context window for default model
+      await updateContextWindowForModel(modelSelect.value);
+
+      // Focus input field
+      document.getElementById('userInput').focus();
     });
   </script>
 </body>

@@ -52,6 +52,45 @@ The server runs on `http://localhost:3000` by default (configurable via PORT env
 
   Next session: Branch will be active, git log -1 shows full context.
 
+## Model Metadata Management
+
+### Context Windows & Pricing Data Sources
+
+This application uses a **tiered source-of-truth strategy** for model metadata:
+
+1. **Primary Source (Azure OpenAI Pricing)**
+   URL: https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
+   Contains: Context windows, pricing, knowledge cutoff dates
+   Update: Check weekly for new models
+
+2. **Validation Source (Microsoft Learn)**
+   URL: https://learn.microsoft.com/en-us/azure/ai-foundry/openai/concepts/models
+   Contains: Detailed context window specs (input/output breakdown)
+   Update: Cross-reference with Primary Source
+
+3. **Fallback Source (Azure Retail Prices API)**
+   URL: https://prices.azure.com/api/retail/prices
+   Contains: Real-time pricing (may lag for new models)
+   Update: Automatic (24-hour cache)
+
+### Updating Model Metadata
+
+When **new models are released** or **context windows change**:
+
+1. Check official Azure OpenAI pricing page
+2. Verify against Microsoft Learn documentation
+3. Update `CONTEXT_WINDOWS` table in `model-metadata-fetcher.js`
+4. Update `FALLBACK_METADATA` if needed
+5. Clear cache: `rm /tmp/llm-model-metadata-cache.json`
+6. Test: `curl http://localhost:3000/api/models`
+
+### Adding Partner Models (Llama, DeepSeek, Grok, etc.)
+
+1. Find pricing page (e.g., https://azure.microsoft.com/en-us/pricing/details/phi-3/)
+2. Add to `CONTEXT_WINDOWS` table with source URL comment
+3. Add to `config.js` models array
+4. Include disclaimer in UI: "Verify pricing in Azure Marketplace"
+
 ## Architecture
 
 ### Tech Stack
