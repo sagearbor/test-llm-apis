@@ -160,7 +160,6 @@ ${conversationText}
 Summary:`;
 
     try {
-      // Use direct Azure OpenAI call for summarization (faster than LangChain wrapper)
       const deploymentName = deploymentMap['smallest_llm_api'];
       const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
       const apiKey = process.env.AZURE_OPENAI_API_KEY;

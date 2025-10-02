@@ -447,10 +447,9 @@
           document.getElementById('userName').textContent = data.user;
           document.getElementById('userInfo').style.display = 'block';
         }
-      } catch (err) {
+      }).catch(err => {
         console.error('Failed to check auth status:', err);
-      }
-    }
+      });
 
     // Logout function
     function logout() {
