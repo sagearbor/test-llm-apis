@@ -62,14 +62,14 @@ export function getHelmetConfig() {
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
   // In development, disable CSP entirely for easier testing
-  // In production, use a balanced policy that allows the app to work
+  // In production, use strict CSP without unsafe-inline
   return helmet({
     contentSecurityPolicy: isDevelopment ? false : {
       directives: {
         defaultSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Allow inline scripts and eval
-        scriptSrcAttr: ["'unsafe-inline'"], // Allow onclick and other inline handlers
+        scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts (refactored handlers but still have inline code)
+        scriptSrcAttr: ["'none'"], // No inline event handlers (onclick, etc) - using addEventListener instead
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: ["'self'", "https:"], // Allow HTTPS connections for APIs
         fontSrc: ["'self'", "data:"],

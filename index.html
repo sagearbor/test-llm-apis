@@ -227,7 +227,7 @@
     <h1 style="margin: 0;">Azure OpenAI Chatbox Test</h1>
     <div id="userInfo" style="display: none;">
       <span id="userName" style="margin-right: 10px; color: #666;"></span>
-      <button onclick="logout()" style="padding: 5px 15px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">Logout</button>
+      <button id="logoutBtn" style="padding: 5px 15px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">Logout</button>
     </div>
   </div>
 
@@ -236,7 +236,7 @@
     <!-- Left Column: Model Status & Selection -->
     <div class="left-column">
       <div id="healthStatus">
-        <h3>Model Connection Status <button class="refresh-btn" onclick="checkHealth()">Refresh</button></h3>
+        <h3>Model Connection Status <button class="refresh-btn" id="refreshHealthBtn">Refresh</button></h3>
         <div id="statusList">Checking connections...</div>
       </div>
 
@@ -265,8 +265,8 @@
       <div id="fileUploadArea">
         <h3>📎 Upload File (Optional)</h3>
         <div class="file-drop-zone" id="fileDropZone">
-          <input type="file" id="fileInput" style="display: none;" onchange="uploadFile()" />
-          <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Choose File</button>
+          <input type="file" id="fileInput" style="display: none;" />
+          <button class="upload-btn" id="chooseFileBtn">Choose File</button>
           <span style="font-size: 12px; color: #666; margin-left: 8px;">or drag & drop</span>
         </div>
         <div id="filesList"></div>
@@ -275,8 +275,8 @@
   </div>
 
   <div style="margin-bottom: 10px;">
-    <input type="text" id="userInput" placeholder="Type your question here..." style="width: calc(100% - 80px); padding: 10px; font-size: 14px;" onkeypress="if(event.key === 'Enter') sendMessage()" />
-    <button onclick="sendMessage()" style="padding: 10px 20px; font-size: 14px;">Send</button>
+    <input type="text" id="userInput" placeholder="Type your question here..." style="width: calc(100% - 80px); padding: 10px; font-size: 14px;" />
+    <button id="sendBtn" style="padding: 10px 20px; font-size: 14px;">Send</button>
   </div>
 
   <div id="chatbox"></div>
@@ -576,16 +576,24 @@ Best for: ${metadata.specialties || 'N/A'}`;
         const sizeKB = (file.size / 1024).toFixed(1);
         html += `
           <div class="file-item ${selected}">
-            <span class="file-name" onclick="selectFile('${file.fileId}')">
+            <span class="file-name file-select-btn" data-file-id="${file.fileId}">
               ${selected ? '✓ ' : ''}${file.filename}
             </span>
             <span class="file-size">${sizeKB} KB</span>
-            <button class="delete-btn" onclick="deleteFile('${file.fileId}')">Delete</button>
+            <button class="delete-btn file-delete-btn" data-file-id="${file.fileId}">Delete</button>
           </div>
         `;
       });
       html += '</div>';
       filesList.innerHTML = html;
+
+      // Attach event listeners to dynamically created buttons
+      document.querySelectorAll('.file-select-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => selectFile(e.target.dataset.fileId));
+      });
+      document.querySelectorAll('.file-delete-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => deleteFile(e.target.dataset.fileId));
+      });
     }
 
     async function loadUploadedFiles() {
@@ -733,8 +741,45 @@ Best for: ${metadata.specialties || 'N/A'}`;
       // Load initial context window for default model
       await updateContextWindowForModel(modelSelect.value);
 
-      // Focus input field
-      document.getElementById('userInput').focus();
+      // ===== ADD EVENT LISTENERS FOR ALL BUTTONS =====
+
+      // Logout button
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', logout);
+      }
+
+      // Refresh health button
+      const refreshHealthBtn = document.getElementById('refreshHealthBtn');
+      if (refreshHealthBtn) {
+        refreshHealthBtn.addEventListener('click', checkHealth);
+      }
+
+      // Choose file button
+      const chooseFileBtn = document.getElementById('chooseFileBtn');
+      const fileInput = document.getElementById('fileInput');
+      if (chooseFileBtn && fileInput) {
+        chooseFileBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', uploadFile);
+      }
+
+      // Send message button
+      const sendBtn = document.getElementById('sendBtn');
+      if (sendBtn) {
+        sendBtn.addEventListener('click', sendMessage);
+      }
+
+      // Enter key on input field
+      const userInput = document.getElementById('userInput');
+      if (userInput) {
+        userInput.addEventListener('keypress', (event) => {
+          if (event.key === 'Enter') {
+            sendMessage();
+          }
+        });
+        // Focus input field
+        userInput.focus();
+      }
     });
   </script>
 </body>
