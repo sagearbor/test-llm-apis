@@ -2,7 +2,15 @@
 
 ## Overview
 
-This application implements multiple layers of security to protect against common web vulnerabilities and ensure safe deployment in Azure Web App environments.
+This application implements **enterprise-grade security** with multiple layers of protection against OWASP Top 10 vulnerabilities. All security measures have been implemented following industry best practices and are suitable for enterprise deployment.
+
+## Security Architecture
+
+### Defense in Depth Strategy
+1. **Frontend Security** - No inline scripts, strict CSP, sanitized inputs
+2. **Backend Security** - Rate limiting, input validation, secure sessions
+3. **Transport Security** - HTTPS enforcement, HSTS headers
+4. **Infrastructure Security** - Environment-based configs, no hardcoded secrets
 
 ## Security Features Implemented
 
@@ -15,16 +23,26 @@ This application implements multiple layers of security to protect against commo
 - In development, localhost is automatically allowed
 - Azure Web App URL is automatically added if `AZURE_WEBAPP_URL` is set
 
-### 2. Helmet.js Security Headers
-**What it does:** Sets various HTTP headers to protect against well-known web vulnerabilities.
+### 2. Helmet.js Security Headers & Strict CSP
+**What it does:** Sets various HTTP headers to protect against well-known web vulnerabilities with the STRICTEST possible Content Security Policy.
+
+**Critical Implementation Details:**
+- **ALL JavaScript externalized** - Zero inline scripts in HTML (app.js contains all code)
+- **NO inline event handlers** - All onclick, onchange removed and replaced with addEventListener
+- **Strict CSP in production**:
+  ```
+  scriptSrc: ['self']        // ONLY external .js files allowed
+  scriptSrcAttr: ['none']    // NO inline event handlers
+  // No 'unsafe-inline' or 'unsafe-eval' for scripts
+  ```
 
 **Headers configured:**
-- **Content Security Policy (CSP)** - Prevents XSS attacks
-- **X-Frame-Options** - Prevents clickjacking
-- **HSTS** - Forces HTTPS connections
-- **X-Content-Type-Options** - Prevents MIME type sniffing
-- **Referrer Policy** - Controls referrer information
-- **X-XSS-Protection** - Basic XSS protection for older browsers
+- **Content Security Policy (CSP)** - STRICTEST setting, blocks ALL inline JavaScript
+- **X-Frame-Options: DENY** - Prevents clickjacking completely
+- **HSTS** - Forces HTTPS connections for 1 year
+- **X-Content-Type-Options: nosniff** - Prevents MIME type sniffing
+- **Referrer Policy: no-referrer** - Maximum privacy
+- **X-XSS-Protection** - Additional XSS protection layer
 
 ### 3. Rate Limiting
 **What it does:** Prevents abuse and DDoS attacks by limiting requests per user.

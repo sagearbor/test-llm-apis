@@ -10,6 +10,27 @@ A simple web interface for testing multiple Azure OpenAI model deployments with 
 - **Low-Cost Health Checks**: Minimal token usage for connection testing
 - **OAuth Authentication**: Optional Azure AD integration for secure access
 - **Production Ready**: NGINX configuration and systemd service included
+- **Enterprise Security**: Comprehensive security hardening with strict CSP, rate limiting, and input sanitization
+
+## 🔒 Security Features
+
+This application implements **enterprise-grade security** with multiple layers of protection:
+
+### Security Implementations
+- **Strict Content Security Policy (CSP)** - Blocks all inline scripts and unsafe JavaScript execution
+- **Complete XSS Protection** - No inline event handlers, all JavaScript externalized to `app.js`
+- **CORS Configuration** - Controlled cross-origin access with configurable allowed origins
+- **Rate Limiting** - DDoS protection with configurable limits (10 req/min production, 100 dev)
+- **Input Sanitization** - Protection against NoSQL injection and malicious payloads
+- **Security Headers** - Full Helmet.js implementation including HSTS, X-Frame-Options, etc.
+- **Session Security** - Cryptographically secure sessions with httpOnly, sameSite cookies
+- **HTTPS Enforcement** - Automatic redirect and HSTS in production
+- **Authentication** - Optional Azure AD OAuth integration
+- **Secrets Management** - Environment-based configuration, no hardcoded secrets
+
+### Security Documentation
+- **Full Security Guide**: [SECURITY.md](SECURITY.md) - Comprehensive security documentation
+- **Deployment Checklist**: [docs/SECURITY_CHECKLIST.md](docs/SECURITY_CHECKLIST.md)
 
 ## Deployment Options
 
@@ -22,7 +43,6 @@ A simple web interface for testing multiple Azure OpenAI model deployments with 
 - **Local Development**: Quick start guide below
 - **Azure Web App**: See [AZURE_DEPLOYMENT.md](AZURE_DEPLOYMENT.md)
 - **Linux VM/Server**: See [docs/VM_DEPLOYMENT.md](docs/VM_DEPLOYMENT.md)
-- **Security Guide**: See [docs/SECURITY_CHECKLIST.md](docs/SECURITY_CHECKLIST.md)
 
 ## Prerequisites
 
