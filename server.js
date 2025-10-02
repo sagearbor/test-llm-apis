@@ -10,11 +10,20 @@ import { getAuthUrl, getTokenFromCode, requireAuth, isOAuthEnabled } from './aut
 import { upload, rateLimitUpload, getUploadDir } from './upload-middleware.js';
 import { processFile } from './file-processor.js';
 import { startCleanupService, stopCleanupService, cleanupSession } from './cleanup-service.js';
+import { applySecurityMiddleware, getEnvironmentConfig } from './security-config.js';
 
 dotenv.config();
 
 const app = express();
-app.use(express.json());
+
+// Apply comprehensive security middleware FIRST
+applySecurityMiddleware(app);
+
+// Then add body parser
+app.use(express.json({ limit: '10mb' })); // Limit payload size
+
+// Get environment-specific configuration
+const envConfig = getEnvironmentConfig();
 
 // Generate secure session secret if not provided
 const sessionSecret = process.env.SESSION_SECRET ||
@@ -29,12 +38,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   rolling: true, // Reset expiration on activity
-  cookie: {
-    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-    httpOnly: true, // Prevent XSS attacks
-    sameSite: 'strict', // CSRF protection
-    maxAge: 1000 * 60 * 60 * 24 // 24 hours
-  }
+  cookie: envConfig.session // Use environment-specific cookie settings
 }));
 
 app.use(express.static('.')); // serve index.html
@@ -522,38 +526,8 @@ app.delete('/api/files/:fileId', requireAuth, async (req, res) => {
   }
 });
 
-// Simple in-memory rate limiter for chat endpoint
-const chatRateLimiter = (() => {
-  const requests = new Map();
-  const WINDOW_MS = 60000; // 1 minute
-  const MAX_REQUESTS = 20; // 20 requests per minute
-
-  return (req, res, next) => {
-    const sessionId = req.session?.id || 'anonymous';
-    const now = Date.now();
-
-    // Clean up old entries
-    for (const [key, data] of requests.entries()) {
-      if (now - data.firstRequest > WINDOW_MS) {
-        requests.delete(key);
-      }
-    }
-
-    const userData = requests.get(sessionId) || { count: 0, firstRequest: now };
-
-    if (userData.count >= MAX_REQUESTS && (now - userData.firstRequest) < WINDOW_MS) {
-      return res.status(429).json({
-        answer: 'Rate limit exceeded. Please wait a moment before sending more messages.'
-      });
-    }
-
-    userData.count++;
-    requests.set(sessionId, userData);
-    next();
-  };
-})();
-
-app.post('/chat', requireAuth, chatRateLimiter, async (req, res) => {
+// Chat endpoint with authentication (rate limiting applied globally in security-config)
+app.post('/chat', requireAuth, async (req, res) => {
   const { prompt, model, fileId, maxTokens } = req.body;
 
   // Input validation
