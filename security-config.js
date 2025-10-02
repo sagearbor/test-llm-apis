@@ -62,20 +62,26 @@ export function getHelmetConfig() {
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
   // In development, disable CSP entirely for easier testing
-  // In production, use strict CSP without unsafe-inline
+  // In production, use STRICTEST CSP - no unsafe-inline anywhere
   return helmet({
     contentSecurityPolicy: isDevelopment ? false : {
+      useDefaults: false, // Don't use Helmet's defaults - we want full control
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"], // Allow inline styles
-        scriptSrc: ["'self'", "'unsafe-inline'"], // Allow inline scripts (refactored handlers but still have inline code)
-        scriptSrcAttr: ["'none'"], // No inline event handlers (onclick, etc) - using addEventListener instead
-        imgSrc: ["'self'", "data:", "https:"],
+        baseUri: ["'self'"],
+        blockAllMixedContent: [],
         connectSrc: ["'self'", "https:"], // Allow HTTPS connections for APIs
         fontSrc: ["'self'", "data:"],
-        objectSrc: ["'none'"],
-        mediaSrc: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'self'"],
         frameSrc: ["'none'"],
+        imgSrc: ["'self'", "data:", "https:"],
+        mediaSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        scriptSrc: ["'self'"], // STRICT: Only external scripts, NO unsafe-inline
+        scriptSrcAttr: ["'none'"], // NO inline event handlers
+        styleSrc: ["'self'", "'unsafe-inline'"], // Still allowing inline styles for CSS simplicity
+        upgradeInsecureRequests: [],
       },
       reportOnly: false // Set to true to test CSP without blocking
     },
