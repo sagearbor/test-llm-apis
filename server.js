@@ -97,15 +97,35 @@ app.get('/api/models', requireAuth, async (req, res) => {
 });
 
 // Config endpoint - returns current server configuration
-app.get('/api/config', requireAuth, (req, res) => {
+// Optionally accepts modelKey to return model-specific context windows
+app.get('/api/config', requireAuth, async (req, res) => {
+  const { modelKey } = req.query;
   const maxCompletionTokens = parseInt(process.env.MAX_COMPLETION_TOKENS || '12800', 10);
-  const contextWindow = 128 * 1024; // 128K tokens
-  const percentagePerResponse = ((maxCompletionTokens / contextWindow) * 100).toFixed(1);
-  const estimatedChatTurns = Math.floor(contextWindow / (maxCompletionTokens * 2)); // *2 for input+output
+
+  // Get model-specific context window if modelKey provided
+  let inputContextWindow = 128 * 1024;  // Default 128K
+  let outputContextWindow = 128 * 1024;
+
+  if (modelKey) {
+    try {
+      const models = await modelConfig.getAllModels(true);
+      const model = models.find(m => m.key === modelKey);
+      if (model) {
+        inputContextWindow = model.inputContextWindow || inputContextWindow;
+        outputContextWindow = model.outputContextWindow || outputContextWindow;
+      }
+    } catch (err) {
+      console.error('Failed to get model config:', err);
+    }
+  }
+
+  const percentagePerResponse = ((maxCompletionTokens / inputContextWindow) * 100).toFixed(1);
+  const estimatedChatTurns = Math.floor(inputContextWindow / (maxCompletionTokens * 2)); // *2 for input+output
 
   res.json({
     maxCompletionTokens,
-    contextWindow,
+    inputContextWindow,
+    outputContextWindow,
     percentagePerResponse: parseFloat(percentagePerResponse),
     estimatedChatTurns
   });

@@ -196,10 +196,11 @@
           <option value="smallest_llm_api" selected>Smallest LLM</option>
           <option value="allaround_llm_api">All-Around LLM</option>
           <option value="best_llm_api">Best LLM</option>
+          <option value="longest_llm_api">Longest LLM</option>
         </select>
         <div style="margin-top: 12px;">
-          <label for="tokenSlider" style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 4px;">Response Length:</label>
-          <input type="range" id="tokenSlider" min="1" max="50" value="10" style="width: 100%; margin-bottom: 4px;">
+          <label for="tokenSlider" style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 4px;">Response Length (tokens):</label>
+          <input type="range" id="tokenSlider" min="1000" max="50000" value="10000" step="1000" style="width: 100%; margin-bottom: 4px;">
           <div id="tokenConfig" style="font-size: 11px; color: #666;"></div>
         </div>
       </div>
@@ -231,6 +232,8 @@
     let uploadedFiles = [];
     let selectedFileId = null;
     let maxCompletionTokens = 12800; // Default, will be updated by slider
+    let currentInputContextWindow = 128 * 1024; // Default 128K, updated per model
+    let currentOutputContextWindow = 128 * 1024;
 
     // Check authentication status
     async function checkAuthStatus() {
@@ -287,7 +290,11 @@
           const deploymentName = result.deploymentName || 'Not configured';
 
           // Build tooltip content
-          const tooltip = `Context: ${metadata.contextWindow || 'N/A'}
+          const inputCtxK = metadata.inputContextWindow ? (metadata.inputContextWindow / 1024).toFixed(0) + 'K' : 'N/A';
+          const outputCtxK = metadata.outputContextWindow ? (metadata.outputContextWindow / 1024).toFixed(0) + 'K' : 'N/A';
+          const contextDisplay = inputCtxK === outputCtxK ? inputCtxK : `${inputCtxK} in / ${outputCtxK} out`;
+
+          const tooltip = `Context: ${contextDisplay} tokens
 Cost: ${metadata.costPer1M || 'N/A'}
 Multimodal: ${metadata.multimodal ? 'Yes' : 'No'}
 Best for: ${metadata.specialties || 'N/A'}`;
@@ -478,32 +485,51 @@ Best for: ${metadata.specialties || 'N/A'}`;
       }
     });
 
-    // Update token display based on slider value
-    function updateTokenDisplay(percentage) {
-      const contextWindow = 128 * 1024; // 128K tokens
-      maxCompletionTokens = Math.floor((percentage / 100) * contextWindow);
-      const estimatedChatTurns = Math.floor(contextWindow / (maxCompletionTokens * 2));
+    // Update token display based on slider value (absolute tokens) and current model's context window
+    function updateTokenDisplay(tokens) {
+      maxCompletionTokens = parseInt(tokens);
+      const estimatedChatTurns = Math.floor(currentInputContextWindow / (maxCompletionTokens * 2));
+      const percentageOfContext = ((maxCompletionTokens / currentInputContextWindow) * 100).toFixed(1);
 
       const tokenConfig = document.getElementById('tokenConfig');
-      tokenConfig.innerHTML = `${maxCompletionTokens.toLocaleString()} tokens (${percentage}% per response, ~${estimatedChatTurns} chat turns)`;
+      const inputCtxK = (currentInputContextWindow / 1024).toFixed(0) + 'K';
+      tokenConfig.innerHTML = `${maxCompletionTokens.toLocaleString()} tokens (${percentageOfContext}% of ${inputCtxK}, ~${estimatedChatTurns} chat turns)`;
 
       // Save to localStorage
-      localStorage.setItem('maxCompletionTokensPercentage', percentage);
+      localStorage.setItem('maxCompletionTokens', tokens);
+    }
+
+    // Fetch and update context window for selected model
+    async function updateContextWindowForModel(modelKey) {
+      try {
+        const response = await fetch(`/api/config?modelKey=${modelKey}`);
+        if (response.ok) {
+          const config = await response.json();
+          currentInputContextWindow = config.inputContextWindow || 128 * 1024;
+          currentOutputContextWindow = config.outputContextWindow || 128 * 1024;
+
+          // Update token display with new context window
+          const slider = document.getElementById('tokenSlider');
+          updateTokenDisplay(parseInt(slider.value));
+        }
+      } catch (err) {
+        console.error('Failed to fetch model config:', err);
+      }
     }
 
     // Load server configuration and set up slider
     async function loadServerConfig() {
       try {
-        // Load saved preference or default to 10%
-        const savedPercentage = localStorage.getItem('maxCompletionTokensPercentage');
-        const percentage = savedPercentage ? parseInt(savedPercentage) : 10;
+        // Load saved preference or default to 10,000 tokens
+        const savedTokens = localStorage.getItem('maxCompletionTokens');
+        const tokens = savedTokens ? parseInt(savedTokens) : 10000;
 
         // Set slider value
         const slider = document.getElementById('tokenSlider');
-        slider.value = percentage;
+        slider.value = tokens;
 
         // Update display
-        updateTokenDisplay(percentage);
+        updateTokenDisplay(tokens);
 
         // Add slider event listener
         slider.addEventListener('input', (e) => {
@@ -521,6 +547,15 @@ Best for: ${metadata.specialties || 'N/A'}`;
       await loadUploadedFiles();
       await loadServerConfig();
       checkHealth();
+
+      // Update context window when model changes
+      const modelSelect = document.getElementById('modelSelect');
+      modelSelect.addEventListener('change', async (e) => {
+        await updateContextWindowForModel(e.target.value);
+      });
+
+      // Load initial context window for default model
+      await updateContextWindowForModel(modelSelect.value);
 
       // Focus input field
       document.getElementById('userInput').focus();
