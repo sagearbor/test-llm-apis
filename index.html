@@ -44,10 +44,10 @@
     .model-select-wrapper { margin-top: 15px; }
     .model-select-wrapper label { display: block; margin-bottom: 5px; font-size: 14px; font-weight: bold; }
     #modelSelect {
-      width: 100%;
       padding: 8px;
       font-size: 14px;
       animation: throb 2s ease-in-out 3;
+      flex: 1;  /* Allow it to shrink for badge */
     }
     @keyframes throb {
       0%, 100% { transform: scale(1); box-shadow: 0 0 0 rgba(33, 150, 243, 0); }
@@ -337,10 +337,18 @@
     function updateSummaryBadge(messageCount, hasSummary) {
       const badge = document.getElementById('summaryBadge');
 
-      if (hasSummary) {
+      if (messageCount > 0) {
         badge.style.display = 'inline-block';
-        badge.textContent = `📝 ${messageCount} msgs`;
-        badge.setAttribute('data-tooltip', `Conversation compressed (${messageCount} recent messages + summary)`);
+
+        if (hasSummary) {
+          badge.textContent = `📝 ${messageCount} msgs`;
+          badge.setAttribute('data-tooltip', `Conversation compressed (${messageCount} recent messages + summary)`);
+          badge.style.background = '#4CAF50';  // Green when compressed
+        } else {
+          badge.textContent = `💬 ${messageCount} msgs`;
+          badge.setAttribute('data-tooltip', `${messageCount} messages in conversation`);
+          badge.style.background = '#2196F3';  // Blue when not compressed
+        }
       } else {
         badge.style.display = 'none';
       }
@@ -472,14 +480,15 @@ Best for: ${metadata.specialties || 'N/A'}`;
         chatbox.innerHTML += `<div class='bot'><strong>Bot:</strong> ${answer}</div>`;
         chatbox.scrollTop = chatbox.scrollHeight;
 
-        // Handle compression info if present
-        if (data.compression) {
-          if (data.compression.compressed) {
+        // Handle memory info if present
+        if (data.memory) {
+          // Show toast only when compression just happened
+          if (data.memory.compressed) {
             showToast('💭 Conversation compressed', 2000);
           }
-          if (data.compression.hasSummary) {
-            updateSummaryBadge(data.compression.messageCount, true);
-          }
+
+          // Always update badge with current message count
+          updateSummaryBadge(data.memory.messageCount, data.memory.hasSummary);
         }
       } catch (err) {
         console.error('Chat error:', err);
