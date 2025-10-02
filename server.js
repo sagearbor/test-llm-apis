@@ -69,32 +69,12 @@ const deploymentMap = modelConfig.getDeploymentMap();
 // ============================================================================
 
 /**
- * Improved token estimation for GPT models
- * Based on OpenAI's guidelines: ~1 token per 4 chars in English
- * More accurate estimates for common patterns
+ * Simple token estimation (1 token ≈ 4 characters for English text)
+ * This is a rough approximation. For exact counting, use tiktoken library.
  */
 function estimateTokens(text) {
   if (!text) return 0;
-
-  // Base estimate: 1 token per 4 characters
-  let tokens = text.length / 4;
-
-  // Adjust for whitespace (spaces usually part of preceding token)
-  const spaces = (text.match(/ /g) || []).length;
-  tokens -= spaces * 0.25;
-
-  // Adjust for punctuation (often separate tokens)
-  const punctuation = (text.match(/[.,!?;:]/g) || []).length;
-  tokens += punctuation * 0.5;
-
-  // Adjust for newlines (usually separate tokens)
-  const newlines = (text.match(/\n/g) || []).length;
-  tokens += newlines;
-
-  // Add buffer for special tokens and formatting
-  tokens *= 1.1;
-
-  return Math.ceil(Math.max(tokens, 1));
+  return Math.ceil(text.length / 4);
 }
 
 /**
@@ -291,20 +271,11 @@ function getConversationMemory(session) {
     get(target, prop) {
       const value = target[prop];
       if (typeof value === 'function') {
-        return function(...args) {
-          const result = value.apply(target, args);
+        return async function(...args) {
+          const result = await value.apply(target, args);
           // Save state back to session after any method call
           session.conversationMemoryData.messages = target.messages;
           session.conversationMemoryData.summary = target.summary;
-          // Handle both sync and async results
-          if (result && typeof result.then === 'function') {
-            return result.then(res => {
-              // Save again after async completion
-              session.conversationMemoryData.messages = target.messages;
-              session.conversationMemoryData.summary = target.summary;
-              return res;
-            });
-          }
           return result;
         };
       }
