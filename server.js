@@ -29,6 +29,15 @@ import { upload, rateLimitUpload, getUploadDir } from './upload-middleware.js';
 import { processFile } from './file-processor.js';
 import { startCleanupService, stopCleanupService, cleanupSession } from './cleanup-service.js';
 import { applySecurityMiddleware, getEnvironmentConfig } from './security-config.js';
+import { recordUsage, extractTokenCounts, checkRateLimits } from './usage-tracker.js';
+import {
+  getUserSummary,
+  getHourlyUsage,
+  getDailyUsage,
+  getCostByModel,
+  getAllUsersSummary,
+  isAdmin
+} from './usage-analytics.js';
 
 dotenv.config();
 
@@ -151,13 +160,11 @@ ${conversationText}
 Summary:`;
 
     try {
-      // Use direct Azure OpenAI call for summarization (faster than LangChain wrapper)
       const deploymentName = deploymentMap['smallest_llm_api'];
       const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
       const apiKey = process.env.AZURE_OPENAI_API_KEY;
-      const apiVersion = process.env.AZURE_OPENAI_API_VERSION || '2024-02-01';
 
-      const url = `${endpoint.replace(/\/$/, '')}/openai/deployments/${deploymentName}/chat/completions?api-version=${apiVersion}`;
+      const url = `${endpoint.replace(/\/$/, '')}/openai/v1/responses`;
 
       const response = await fetch(url, {
         method: 'POST',
@@ -166,13 +173,14 @@ Summary:`;
           'api-key': apiKey
         },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: summaryPrompt }],
-          max_completion_tokens: 500
+          model: deploymentName,
+          input: summaryPrompt,
+          max_output_tokens: 500
         })
       });
 
       const data = await response.json();
-      const newSummary = data.choices?.[0]?.message?.content || 'Previous conversation context.';
+      const newSummary = data.output || 'Previous conversation context.';
 
       // Combine with existing summary if present
       if (this.summary) {
@@ -383,11 +391,10 @@ app.get('/api/config', requireAuth, async (req, res) => {
   });
 });
 
-// Health check endpoint - pings each model with minimal tokens
+// Health check endpoint - pings each model with minimal tokens using Responses API
 app.get('/health', requireAuth, async (req, res) => {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
   const apiKey = process.env.AZURE_OPENAI_API_KEY;
-  const apiVersion = process.env.AZURE_OPENAI_API_VERSION || '2024-02-01';
 
   const results = {};
 
@@ -398,15 +405,15 @@ app.get('/health', requireAuth, async (req, res) => {
     }
 
     try {
-      // Detect if codex model
-      const isCodexModel = deploymentName.toLowerCase().includes('codex');
-      const apiPath = isCodexModel ? 'responses' : 'chat/completions';
-      const url = `${endpoint.replace(/\/$/, '')}/openai/deployments/${deploymentName}/${apiPath}?api-version=${apiVersion}`;
+      // ALL models now use Responses API
+      const url = `${endpoint.replace(/\/$/, '')}/openai/v1/responses`;
 
-      // Minimal request body - some models need higher token counts
-      const requestBody = isCodexModel
-        ? { input: 'hi', max_output_tokens: 10 }
-        : { messages: [{ role: 'user', content: 'hi' }], max_completion_tokens: 10 };
+      // Minimal request body for Responses API (minimum 16 tokens required)
+      const requestBody = {
+        model: deploymentName,
+        input: 'hi',
+        max_output_tokens: 16
+      };
 
       const response = await fetch(url, {
         method: 'POST',
@@ -519,6 +526,10 @@ app.delete('/api/files/:fileId', requireAuth, async (req, res) => {
 app.post('/chat', requireAuth, async (req, res) => {
   const { prompt, model, fileId, maxTokens } = req.body;
 
+  // Get user info for usage tracking
+  const userEmail = req.session?.account?.username || 'anonymous';
+  const userId = req.session?.account?.homeAccountId || 'anonymous';
+
   // Input validation
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
     return res.status(400).json({ answer: 'Please provide a valid message.' });
@@ -526,6 +537,19 @@ app.post('/chat', requireAuth, async (req, res) => {
 
   if (!model || typeof model !== 'string') {
     return res.status(400).json({ answer: 'Please select a valid model.' });
+  }
+
+  // Check rate limits before proceeding
+  if (isOAuthEnabled()) {
+    const rateLimitCheck = await checkRateLimits(userEmail);
+    if (!rateLimitCheck.allowed) {
+      return res.status(429).json({
+        answer: `Rate limit exceeded. Usage: ${rateLimitCheck.usage.hourlyTokens} tokens/hour, $${rateLimitCheck.usage.hourlyCost}/hour. Limits: ${rateLimitCheck.limits.hourly_tokens} tokens/hour, $${rateLimitCheck.limits.hourly_cost}/hour.`,
+        rateLimitExceeded: true,
+        usage: rateLimitCheck.usage,
+        limits: rateLimitCheck.limits
+      });
+    }
   }
 
   // Sanitize prompt (basic XSS prevention, though we're not rendering HTML)
@@ -601,34 +625,56 @@ app.post('/chat', requireAuth, async (req, res) => {
     conversationMessages = [{ role: 'user', content: finalPrompt }];
   }
 
-  // Determine API endpoint & format based on model type
-  // gpt-5-codex and similar codex models use the "Responses API"
-  const isCodexModel = deploymentName.toLowerCase().includes('codex');
-  const apiPath = isCodexModel ? 'responses' : 'chat/completions';
-  const url = `${endpoint.replace(/\/$/, '')}/openai/deployments/${deploymentName}/${apiPath}?api-version=${apiVersion}`;
+  // ALL models now use the Responses API (/openai/v1/responses)
+  // No API version needed with v1 endpoint
+  const url = `${endpoint.replace(/\/$/, '')}/openai/v1/responses`;
 
   console.log('Request URL:', url);
   console.log('Deployment Name:', deploymentName);
   console.log('Conversation messages count:', conversationMessages.length);
 
-  // Get max completion tokens from client preference or environment (default 12800 = 10% of 128K context)
-  const maxCompletionTokens = maxTokens || parseInt(process.env.MAX_COMPLETION_TOKENS || '12800', 10);
+  // Get max output tokens from client preference or environment (default 12800 = 10% of 128K context)
+  const maxOutputTokens = maxTokens || parseInt(process.env.MAX_OUTPUT_TOKENS || '12800', 10);
 
-  let requestBody;
+  // Convert conversation messages array to single input string
+  // For Responses API, we concatenate all messages into a single prompt
+  let inputPrompt = '';
+  for (const msg of conversationMessages) {
+    if (msg.role === 'system') {
+      inputPrompt += `System: ${msg.content}\n\n`;
+    } else if (msg.role === 'user') {
+      inputPrompt += `User: ${msg.content}\n\n`;
+    } else if (msg.role === 'assistant') {
+      inputPrompt += `Assistant: ${msg.content}\n\n`;
+    }
+  }
+  // Add final instruction to ensure model responds as assistant
+  inputPrompt += 'Assistant:';
 
-  if (isCodexModel) {
-    // Responses API body format for codex - doesn't support multi-turn, use latest message only
-    const latestMessage = conversationMessages[conversationMessages.length - 1];
-    requestBody = {
-      input: latestMessage.content,
-      max_output_tokens: maxCompletionTokens
-    };
-  } else {
-    // Standard Chat Completions format for other models - use full conversation
-    requestBody = {
-      messages: conversationMessages,
-      max_completion_tokens: maxCompletionTokens
-    };
+  // Build request body for Responses API
+  const requestBody = {
+    model: deploymentName,
+    input: inputPrompt,
+    max_output_tokens: maxOutputTokens
+  };
+
+  // Add GPT-5 specific parameters if it's a GPT-5 model
+  const isGPT5Model = deploymentName.toLowerCase().startsWith('gpt-5');
+  if (isGPT5Model) {
+    // Get reasoning_effort and verbosity from request (defaults to medium)
+    const reasoningEffort = req.body.reasoningEffort || 'medium';
+    const verbosity = req.body.verbosity || 'medium';
+
+    // Note: gpt-5-codex does not support 'minimal' reasoning_effort
+    const isCodex = deploymentName.toLowerCase().includes('codex');
+    if (isCodex && reasoningEffort === 'minimal') {
+      requestBody.reasoning = { effort: 'low' }; // Fallback to 'low' for codex
+    } else {
+      requestBody.reasoning = { effort: reasoningEffort };
+    }
+
+    // Azure Responses API uses text.verbosity, not verbosity
+    requestBody.text = { verbosity: verbosity };
   }
 
   console.log('Request body:', JSON.stringify(requestBody, null, 2));
@@ -650,16 +696,61 @@ app.post('/chat', requireAuth, async (req, res) => {
     if (!response.ok) {
       // Enhanced error message with troubleshooting info
       const errorMsg = data.error?.message || JSON.stringify(data);
-      throw new Error(`${errorMsg}. Deployment: ${deploymentName}, API: ${apiPath}, Version: ${apiVersion}`);
+
+      // Record failed request
+      if (isOAuthEnabled()) {
+        await recordUsage({
+          userEmail,
+          userId,
+          model,
+          deployment: deploymentName,
+          inputTokens: 0,
+          outputTokens: 0,
+          sessionId: req.session?.id,
+          fileAttached: !!fileId,
+          success: false,
+          errorMessage: errorMsg
+        });
+      }
+
+      throw new Error(`${errorMsg}. Deployment: ${deploymentName}, API: Responses API (v1)`);
     }
 
-    // Extract response based on the API format used
-    let answer;
-    if (isCodexModel) {
-        // Responses API returns the answer in 'output_text'
-        answer = data.output_text || '(no response from codex model)';
-    } else {
-        answer = data.choices?.[0]?.message?.content || '(empty response from chat model)';
+    // Responses API returns the answer in 'output' field (array format)
+    let answer = '(empty response from model)';
+    if (Array.isArray(data.output)) {
+      // Find the message object in the output array
+      const messageObj = data.output.find(item => item.type === 'message');
+      if (messageObj && messageObj.content && messageObj.content.length > 0) {
+        const textContent = messageObj.content.find(c => c.type === 'output_text');
+        if (textContent && textContent.text) {
+          answer = textContent.text;
+        }
+      }
+    } else if (typeof data.output === 'string') {
+      // Fallback for simple string output
+      answer = data.output;
+    }
+
+    // Extract token counts for usage tracking from Responses API format
+    const tokenCounts = extractTokenCounts(data, true); // Always use Responses API format
+
+    // Record usage to CSV
+    if (isOAuthEnabled()) {
+      const costs = await recordUsage({
+        userEmail,
+        userId,
+        model,
+        deployment: deploymentName,
+        inputTokens: tokenCounts.prompt_tokens,
+        outputTokens: tokenCounts.completion_tokens,
+        sessionId: req.session?.id,
+        fileAttached: !!fileId,
+        success: true,
+        errorMessage: ''
+      });
+
+      console.log(`Usage recorded: ${userEmail} - ${tokenCounts.total_tokens} tokens, $${costs.totalCost}`);
     }
 
     // Add assistant response to conversation memory
@@ -668,10 +759,25 @@ app.post('/chat', requireAuth, async (req, res) => {
     console.log('Extracted answer:', answer);
     console.log('Memory info:', JSON.stringify(memoryInfo));
 
-    // Return answer with memory info
-    const responseData = { answer };
+    // Extract the actual model name from Azure response for verification
+    const actualModelUsed = data.model || deploymentName;
+    console.log('Model called by Azure:', actualModelUsed);
+
+    // Return answer with memory info and usage
+    const responseData = {
+      answer,
+      modelCalled: actualModelUsed,  // Actual model returned by Azure
+      deploymentName: deploymentName  // What we requested
+    };
     if (memoryInfo) {
       responseData.memory = memoryInfo;
+    }
+    if (isOAuthEnabled() && tokenCounts.total_tokens > 0) {
+      responseData.usage = {
+        tokens: tokenCounts.total_tokens,
+        inputTokens: tokenCounts.prompt_tokens,
+        outputTokens: tokenCounts.completion_tokens
+      };
     }
 
     console.log('Sending response:', JSON.stringify(responseData));
@@ -679,6 +785,111 @@ app.post('/chat', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Fetch error:', error);
     res.status(500).json({ answer: `Azure OpenAI Error: ${error.message}` });
+  }
+});
+
+// ============================================================================
+// Usage Analytics Endpoints
+// ============================================================================
+
+// Get current user's usage summary
+app.get('/api/usage/summary', requireAuth, async (req, res) => {
+  try {
+    const userEmail = req.session?.account?.username || 'anonymous';
+    const { startDate, endDate } = req.query;
+
+    const summary = await getUserSummary(
+      userEmail,
+      startDate ? new Date(startDate) : null,
+      endDate ? new Date(endDate) : null
+    );
+
+    res.json(summary);
+  } catch (error) {
+    console.error('Error getting usage summary:', error);
+    res.status(500).json({ error: 'Failed to get usage summary' });
+  }
+});
+
+// Get hourly usage breakdown
+app.get('/api/usage/hourly', requireAuth, async (req, res) => {
+  try {
+    const userEmail = req.session?.account?.username || 'anonymous';
+    const hoursBack = parseInt(req.query.hours) || 24;
+
+    const hourlyData = await getHourlyUsage(userEmail, hoursBack);
+    res.json(hourlyData);
+  } catch (error) {
+    console.error('Error getting hourly usage:', error);
+    res.status(500).json({ error: 'Failed to get hourly usage' });
+  }
+});
+
+// Get daily usage breakdown
+app.get('/api/usage/daily', requireAuth, async (req, res) => {
+  try {
+    const userEmail = req.session?.account?.username || 'anonymous';
+    const daysBack = parseInt(req.query.days) || 30;
+
+    const dailyData = await getDailyUsage(userEmail, daysBack);
+    res.json(dailyData);
+  } catch (error) {
+    console.error('Error getting daily usage:', error);
+    res.status(500).json({ error: 'Failed to get daily usage' });
+  }
+});
+
+// Get cost breakdown by model
+app.get('/api/usage/costs', requireAuth, async (req, res) => {
+  try {
+    const userEmail = req.session?.account?.username || 'anonymous';
+    const { startDate, endDate } = req.query;
+
+    const costs = await getCostByModel(
+      userEmail,
+      startDate ? new Date(startDate) : null,
+      endDate ? new Date(endDate) : null
+    );
+
+    res.json(costs);
+  } catch (error) {
+    console.error('Error getting cost breakdown:', error);
+    res.status(500).json({ error: 'Failed to get cost breakdown' });
+  }
+});
+
+// Get current rate limit status
+app.get('/api/usage/limits', requireAuth, async (req, res) => {
+  try {
+    const userEmail = req.session?.account?.username || 'anonymous';
+    const limitStatus = await checkRateLimits(userEmail);
+    res.json(limitStatus);
+  } catch (error) {
+    console.error('Error checking rate limits:', error);
+    res.status(500).json({ error: 'Failed to check rate limits' });
+  }
+});
+
+// Admin endpoint - get all users' usage
+app.get('/api/admin/usage', requireAuth, async (req, res) => {
+  try {
+    const userEmail = req.session?.account?.username || 'anonymous';
+
+    // Check if user is admin
+    if (!isAdmin(userEmail)) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const { startDate, endDate } = req.query;
+    const allUsersData = await getAllUsersSummary(
+      startDate ? new Date(startDate) : null,
+      endDate ? new Date(endDate) : null
+    );
+
+    res.json(allUsersData);
+  } catch (error) {
+    console.error('Error getting all users usage:', error);
+    res.status(500).json({ error: 'Failed to get all users usage' });
   }
 });
 

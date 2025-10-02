@@ -1,0 +1,9 @@
+{
+  "default": {
+    "hourly_tokens": 100000,
+    "daily_tokens": 1000000,
+    "hourly_cost": 10,
+    "daily_cost": 100
+  },
+  "users": {}
+}

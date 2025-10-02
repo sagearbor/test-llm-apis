@@ -10,6 +10,10 @@
  */
 
 import * as msal from '@azure/msal-node';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 // Check if OAuth is enabled
 const isAuthEnabled = process.env.ENABLE_OAUTH === 'true';

@@ -14,7 +14,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Azure OpenAI Chatbox Test</title>
+  <title>DIAL - DCRI Intelligent AI Liaison</title>
+  <link rel="icon" type="image/x-icon" href="assets/dial-icon.ico">
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
     select, input, button { margin: 5px 0; padding: 5px; }
@@ -27,20 +28,38 @@
     .left-column, .right-column { background: #f5f5f5; border-radius: 5px; padding: 15px; }
 
     #healthStatus { margin: 0; padding: 0; background: transparent; }
-    #healthStatus h3 { margin: 0 0 10px 0; font-size: 16px; }
-    .status-item { margin: 5px 0; display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+    #healthStatus h3 { margin: 0 0 8px 0; font-size: 15px; }
+    #statusList {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .status-item {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      font-size: 10px;
+      padding: 1px 0;
+    }
     .status-indicator {
       display: inline-block;
-      width: 12px;
-      height: 12px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
-      margin-right: 8px;
+      margin-right: 6px;
+      flex-shrink: 0;
     }
     .status-ok { background-color: #4CAF50; }
     .status-error { background-color: #f44336; }
     .status-checking { background-color: #FFC107; }
-    .status-label { flex: 1; font-weight: normal; }
-    .status-message { font-size: 0.85em; color: #666; }
+    .status-label {
+      flex: 1;
+      font-weight: normal;
+      white-space: nowrap;
+      overflow: visible;
+      text-overflow: ellipsis;
+    }
+    .status-message { font-size: 10px; color: #666; }
     .refresh-btn {
       padding: 4px 10px;
       background: #2196F3;
@@ -84,17 +103,26 @@
       content: attr(data-tooltip);
       position: absolute;
       left: 20px;
-      top: -5px;
-      background: #333;
-      color: white;
-      padding: 8px 12px;
-      border-radius: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      background-color: #2d2d2d !important;
+      color: #f0f0f0 !important;
+      padding: 14px 18px;
+      border-radius: 8px;
       white-space: pre-line;
-      font-size: 11px;
+      font-size: 14px;
       font-weight: normal;
-      z-index: 1000;
-      min-width: 250px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      line-height: 1.7;
+      letter-spacing: 0.4px;
+      z-index: 99999;
+      min-width: 320px;
+      max-width: 450px;
+      width: max-content;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 0 2px rgba(255,255,255,0.2);
+      pointer-events: none;
+      font-family: Arial, sans-serif;
+      text-align: left;
+      display: block;
     }
 
     /* File Upload Styles */
@@ -202,6 +230,155 @@
       transform: translateY(0);
     }
 
+    /* Usage Dashboard Button */
+    .usage-btn {
+      padding: 8px 16px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+    }
+    .usage-btn:hover { background: #45a049; }
+
+    /* Usage Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 10000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: 2% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 90%;
+      max-width: 1000px;
+      max-height: 90vh;
+      overflow-y: auto;
+      border-radius: 8px;
+    }
+    .close-modal {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close-modal:hover { color: #000; }
+
+    .usage-tabs {
+      display: flex;
+      border-bottom: 2px solid #ddd;
+      margin-bottom: 20px;
+    }
+    .usage-tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-size: 14px;
+      color: #666;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+    }
+    .usage-tab.active {
+      color: #2196F3;
+      border-bottom-color: #2196F3;
+    }
+    .usage-content {
+      display: none;
+    }
+    .usage-content.active {
+      display: block;
+    }
+
+    .usage-stat {
+      display: inline-block;
+      margin: 10px 20px 10px 0;
+    }
+    .usage-stat-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    .usage-stat-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+    }
+    .usage-stat-unit {
+      font-size: 14px;
+      color: #999;
+      margin-left: 4px;
+    }
+
+    .usage-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    .usage-table th {
+      background: #f5f5f5;
+      padding: 10px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: bold;
+      border-bottom: 2px solid #ddd;
+    }
+    .usage-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+    }
+    .usage-table tr:hover {
+      background: #f9f9f9;
+    }
+
+    .rate-limit-bar {
+      margin: 10px 0;
+    }
+    .rate-limit-label {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    .rate-limit-progress {
+      width: 100%;
+      height: 20px;
+      background: #f0f0f0;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+    }
+    .rate-limit-fill {
+      height: 100%;
+      background: #4CAF50;
+      transition: width 0.3s;
+    }
+    .rate-limit-fill.warning {
+      background: #FF9800;
+    }
+    .rate-limit-fill.danger {
+      background: #f44336;
+    }
+    .rate-limit-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 11px;
+      color: #333;
+      font-weight: bold;
+    }
+
     /* Conversation Summary Badge */
     .summary-badge {
       display: inline-block;
@@ -235,38 +412,96 @@
 </head>
 <body>
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-    <h1 style="margin: 0;">Azure OpenAI Chatbox Test</h1>
+    <h1 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+      <img src="assets/dial-icon.ico" alt="DIAL" width="40" height="40" style="flex-shrink: 0;">
+      <span>DIAL - DCRI Intelligent AI Liaison</span>
+    </h1>
     <div id="userInfo" style="display: none;">
       <span id="userName" style="margin-right: 10px; color: #666;"></span>
       <button id="logoutBtn" style="padding: 5px 15px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">Logout</button>
     </div>
   </div>
 
+  <!-- Usage Dashboard Button (shown when OAuth is enabled) -->
+  <div id="usageButtonContainer" style="position: absolute; top: 20px; right: 120px; display: none;">
+    <button id="usageButton" class="usage-btn">📊 Usage</button>
+  </div>
+
   <!-- Two Column Layout -->
   <div class="two-column-container">
     <!-- Left Column: Model Status & Selection -->
     <div class="left-column">
-      <div id="healthStatus">
-        <h3>Model Connection Status <button class="refresh-btn" id="refreshHealthBtn">Refresh</button></h3>
-        <div id="statusList">Checking connections...</div>
-      </div>
+      <!-- Two-column grid layout within left panel -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
 
-      <div class="model-select-wrapper">
-        <label for="modelSelect">Choose Model:</label>
-        <div style="display: flex; align-items: center;">
-          <select id="modelSelect" style="flex: 1;">
-            <option value="coding_llm_api">Coding LLM</option>
-            <option value="smallest_llm_api" selected>Smallest LLM</option>
-            <option value="allaround_llm_api">All-Around LLM</option>
-            <option value="best_llm_api">Best LLM</option>
-            <option value="longest_llm_api">Longest LLM</option>
-          </select>
-          <span id="summaryBadge" class="summary-badge" style="display: none;" data-tooltip="Conversation history compressed"></span>
+        <!-- Left side: Controls stacked vertically -->
+        <div>
+          <div class="model-select-wrapper">
+            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+              <label for="modelSelect" style="font-size: 11px; font-weight: bold; white-space: nowrap; min-width: 50px;">Choose<br>Model:</label>
+              <select id="modelSelect" style="flex: 1; padding: 3px; font-size: 11px;">
+                <option value="coding_llm_api">Coding LLM</option>
+                <option value="smallest_llm_api" selected>Smallest LLM</option>
+                <option value="allaround_llm_api">All-Around LLM</option>
+                <option value="best_llm_api">Best LLM</option>
+                <option value="longest_llm_api">Longest LLM</option>
+              </select>
+              <span id="summaryBadge" class="summary-badge" style="display: none;" data-tooltip="Conversation history compressed"></span>
+            </div>
+          </div>
+
+          <!-- Advanced Options: Collapsible (hidden by default) -->
+          <div style="margin-top: 8px;">
+            <button id="advancedToggle" style="padding: 4px 8px; font-size: 10px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; width: 100%;">
+              ▶ Advanced Options
+            </button>
+            <div id="advancedOptions" style="display: none; margin-top: 6px;">
+              <!-- GPT-5 Controls: Stacked vertically (shown when applicable) -->
+              <div id="gpt5Controls" style="display: none;">
+                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                  <label for="reasoningEffort" style="font-size: 11px; font-weight: bold; white-space: nowrap; min-width: 50px;">Reasoning:</label>
+                  <select id="reasoningEffort" style="flex: 1; padding: 3px; font-size: 11px;">
+                    <option value="minimal" selected>Minimal</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                  <label for="verbosity" style="font-size: 11px; font-weight: bold; white-space: nowrap; min-width: 50px;">Verbosity:</label>
+                  <select id="verbosity" style="flex: 1; padding: 3px; font-size: 11px;">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                <label for="tokenSlider" style="font-size: 11px; font-weight: bold; white-space: nowrap; min-width: 50px;">Tokens:</label>
+                <div style="flex: 1; position: relative;">
+                  <!-- Usage bar behind slider -->
+                  <div style="position: absolute; top: 6px; left: 0; right: 0; height: 4px; background: #e0e0e0; border-radius: 2px;">
+                    <div id="tokenUsageBar" style="height: 100%; border-radius: 2px; width: 0%; transition: width 0.3s, background-color 0.3s;"></div>
+                  </div>
+                  <input type="range" id="tokenSlider" min="1000" max="50000" value="10000" step="1000" style="width: 100%; position: relative; background: transparent;">
+                  <div id="tokenConfig" style="font-size: 9px; color: #666;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div style="margin-top: 12px;">
-          <label for="tokenSlider" style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 4px;">Response Length (tokens):</label>
-          <input type="range" id="tokenSlider" min="1000" max="50000" value="10000" step="1000" style="width: 100%; margin-bottom: 4px;">
-          <div id="tokenConfig" style="font-size: 11px; color: #666;"></div>
+
+        <!-- Right side: Status header + list -->
+        <div>
+          <div id="healthStatus">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <h3 style="margin: 0; font-size: 14px;">Model Connection Status</h3>
+              <button class="refresh-btn" id="statusToggleBtn" style="font-size: 10px; padding: 3px 8px;">Show</button>
+            </div>
+            <div id="statusSummary" style="font-size: 11px; color: #666; margin-bottom: 4px;">Checking...</div>
+          </div>
+          <div id="statusList" style="display: none;">Checking connections...</div>
         </div>
       </div>
     </div>
@@ -294,6 +529,47 @@
 
   <!-- Toast Notification Container -->
   <div id="toastContainer"></div>
+
+  <!-- Usage Dashboard Modal -->
+  <div id="usageModal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal" id="closeUsageModal">&times;</span>
+      <h2>📊 Usage Dashboard</h2>
+
+      <div class="usage-tabs">
+        <button class="usage-tab active" data-tab="summary">Summary</button>
+        <button class="usage-tab" data-tab="hourly">Hourly</button>
+        <button class="usage-tab" data-tab="daily">Daily</button>
+        <button class="usage-tab" data-tab="models">By Model</button>
+        <button class="usage-tab" data-tab="limits">Rate Limits</button>
+      </div>
+
+      <div class="usage-content active" id="summary-content">
+        <h3>Usage Summary</h3>
+        <div id="summaryStats"></div>
+      </div>
+
+      <div class="usage-content" id="hourly-content">
+        <h3>Last 24 Hours</h3>
+        <div id="hourlyChart"></div>
+      </div>
+
+      <div class="usage-content" id="daily-content">
+        <h3>Last 30 Days</h3>
+        <div id="dailyChart"></div>
+      </div>
+
+      <div class="usage-content" id="models-content">
+        <h3>Usage by Model</h3>
+        <div id="modelStats"></div>
+      </div>
+
+      <div class="usage-content" id="limits-content">
+        <h3>Current Rate Limits</h3>
+        <div id="rateLimits"></div>
+      </div>
+    </div>
+  </div>
 
   <!-- All JavaScript moved to external file for strict CSP compliance -->
   <script src="app.js"></script>

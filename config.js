@@ -19,13 +19,13 @@ export const modelConfig = {
       key: 'coding_llm_api',
       displayName: 'Coding LLM',
       description: 'Code generation and programming tasks',
-      defaultDeployment: 'gpt-5-mini', // 'gpt-5-codex',
+      defaultDeployment: 'gpt-5-codex',
       envVar: 'CODING_LLM_DEPLOYMENT_NAME',
       inputContextWindow: 272000,  // 272K input tokens
       outputContextWindow: 128000, // 128K output tokens
-      costPer1M: '$0.15 input / $0.60 output (estimated)',
-      multimodal: true,  // gpt-5-mini supports vision
-      specialties: 'Code generation, debugging, refactoring'
+      costPer1M: '$0.50 input / $2.00 output (same as gpt-5)',
+      multimodal: false,  // gpt-5-codex is text-only
+      specialties: 'Agentic software engineering, code generation, debugging, refactoring, large-scale projects'
     },
     {
       key: 'smallest_llm_api',
