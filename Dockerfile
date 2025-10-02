@@ -26,12 +26,9 @@ RUN addgroup -g 1001 -S nodejs && \
 # Copy dependencies from deps stage
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 
-# Copy application code
-COPY --chown=nodejs:nodejs server.js ./
-COPY --chown=nodejs:nodejs config.js ./
-COPY --chown=nodejs:nodejs auth.js ./
-COPY --chown=nodejs:nodejs index.html ./
-COPY --chown=nodejs:nodejs login.html ./
+# Copy application code (copy all .js and .html files)
+COPY --chown=nodejs:nodejs *.js ./
+COPY --chown=nodejs:nodejs *.html ./
 COPY --chown=nodejs:nodejs package*.json ./
 
 # Set environment variables
