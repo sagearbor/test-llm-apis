@@ -3,6 +3,22 @@
 ## Date: 2025-01-02
 ## Feature: OAuth Authentication with Usage Tracking & Rate Limiting
 
+## Update: 2025-01-02 - LangChain Removal
+### Decision: Remove Unused LangChain Dependencies
+**Rationale:**
+- LangChain packages (@langchain/core, @langchain/openai) were installed but never implemented
+- Added 170+ transitive dependencies increasing attack surface
+- Security audits flag unused dependencies as vulnerability risks
+- Custom ConversationMemory implementation works perfectly without external dependencies
+
+**Impact:**
+- Removed 51 packages from node_modules
+- Reduced security attack surface significantly
+- Cleaner npm audit results
+- Better compliance with enterprise security standards
+
+**Note:** Code tagged as `langchain-installed-not-implemented-v1.0` preserves the version with LangChain installed for potential future development.
+
 ### Overview
 
 Implemented Azure AD OAuth authentication with comprehensive usage tracking, cost monitoring, and rate limiting for the Azure OpenAI test application. The solution is optimized for Docker deployment and designed to scale from small teams to enterprise use.
