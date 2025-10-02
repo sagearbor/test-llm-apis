@@ -473,14 +473,25 @@
 
     async function checkHealth() {
       const statusList = document.getElementById('statusList');
+      const statusSummary = document.getElementById('statusSummary');
       statusList.innerHTML = 'Checking connections...';
+      if (statusSummary) {
+        statusSummary.textContent = 'Checking...';
+        statusSummary.style.color = '#666';
+      }
 
       try {
         const response = await fetch('/health');
         const data = await response.json();
 
         let html = '';
+        let okCount = 0;
+        let totalCount = 0;
+
         for (const [modelKey, result] of Object.entries(data)) {
+          totalCount++;
+          if (result.status === 'ok') okCount++;
+
           const statusClass = result.status === 'ok' ? 'status-ok' : 'status-error';
           const metadata = modelMetadata[modelKey] || {};
           const displayName = metadata.displayName || modelKey;
@@ -508,8 +519,20 @@ Best for: ${metadata.specialties || 'N/A'}`;
         }
 
         statusList.innerHTML = html;
+
+        // Update summary
+        if (statusSummary) {
+          if (okCount === totalCount) {
+            statusSummary.innerHTML = `<span style="color: #4CAF50;">✓ All models ready (${totalCount}/${totalCount})</span>`;
+          } else {
+            statusSummary.innerHTML = `<span style="color: ${okCount > 0 ? '#FFC107' : '#f44336'};">${okCount}/${totalCount} models ready</span>`;
+          }
+        }
       } catch (err) {
         statusList.innerHTML = `<div style="color: red;">Failed to check health: ${err.message}</div>`;
+        if (statusSummary) {
+          statusSummary.innerHTML = `<span style="color: #f44336;">Error checking status</span>`;
+        }
       }
     }
 
@@ -731,6 +754,32 @@ Best for: ${metadata.specialties || 'N/A'}`;
       const inputCtxK = (currentInputContextWindow / 1024).toFixed(0) + 'K';
       tokenConfig.innerHTML = `${maxCompletionTokens.toLocaleString()} tokens (${percentageOfContext}% of ${inputCtxK}, ~${estimatedChatTurns} chat turns)`;
 
+      // Update usage bar with smooth gradient from green (0%) to red (100%)
+      const tokenUsageBar = document.getElementById('tokenUsageBar');
+      if (tokenUsageBar) {
+        tokenUsageBar.style.width = percentageOfContext + '%';
+
+        // Smooth color gradient: green at 0% → yellow at 50% → red at 100%
+        const pct = parseFloat(percentageOfContext);
+        let r, g, b;
+
+        if (pct <= 50) {
+          // Green to Yellow: interpolate from rgb(76,175,80) to rgb(255,193,7)
+          const ratio = pct / 50;
+          r = Math.round(76 + (255 - 76) * ratio);
+          g = Math.round(175 + (193 - 175) * ratio);
+          b = Math.round(80 + (7 - 80) * ratio);
+        } else {
+          // Yellow to Red: interpolate from rgb(255,193,7) to rgb(244,67,54)
+          const ratio = (pct - 50) / 50;
+          r = Math.round(255 + (244 - 255) * ratio);
+          g = Math.round(193 + (67 - 193) * ratio);
+          b = Math.round(7 + (54 - 7) * ratio);
+        }
+
+        tokenUsageBar.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+      }
+
       // Save to localStorage
       localStorage.setItem('maxCompletionTokens', tokens);
     }
@@ -878,10 +927,32 @@ Best for: ${metadata.specialties || 'N/A'}`;
         logoutBtn.addEventListener('click', logout);
       }
 
-      // Refresh health button
-      const refreshHealthBtn = document.getElementById('refreshHealthBtn');
-      if (refreshHealthBtn) {
-        refreshHealthBtn.addEventListener('click', checkHealth);
+      // Advanced options toggle
+      const advancedToggle = document.getElementById('advancedToggle');
+      const advancedOptions = document.getElementById('advancedOptions');
+      if (advancedToggle && advancedOptions) {
+        advancedToggle.addEventListener('click', () => {
+          const isHidden = advancedOptions.style.display === 'none';
+          advancedOptions.style.display = isHidden ? 'block' : 'none';
+          advancedToggle.textContent = isHidden ? '▼ Advanced Options' : '▶ Advanced Options';
+        });
+      }
+
+      // Status toggle button (Show/Refresh)
+      const statusToggleBtn = document.getElementById('statusToggleBtn');
+      const statusList = document.getElementById('statusList');
+      if (statusToggleBtn && statusList) {
+        statusToggleBtn.addEventListener('click', () => {
+          const isHidden = statusList.style.display === 'none';
+          if (isHidden) {
+            // Show the list
+            statusList.style.display = 'flex';
+            statusToggleBtn.textContent = 'Refresh';
+          } else {
+            // Already showing, so refresh
+            checkHealth();
+          }
+        });
       }
 
       // Choose file button
