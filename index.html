@@ -14,7 +14,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Azure OpenAI Chatbox Test</title>
+  <title>DCRI Secure Chat Controller</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
     select, input, button { margin: 5px 0; padding: 5px; }
@@ -411,7 +411,7 @@
 </head>
 <body>
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-    <h1 style="margin: 0;">Azure OpenAI Chatbox Test</h1>
+    <h1 style="margin: 0;">DCRI Secure Chat Controller</h1>
     <div id="userInfo" style="display: none;">
       <span id="userName" style="margin-right: 10px; color: #666;"></span>
       <button id="logoutBtn" style="padding: 5px 15px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">Logout</button>
@@ -446,32 +446,44 @@
             </div>
           </div>
 
-          <!-- GPT-5 Controls: Stacked vertically (hidden by default) -->
-          <div id="gpt5Controls" style="display: none;">
-            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-              <label for="reasoningEffort" style="font-size: 11px; font-weight: bold; white-space: nowrap; min-width: 50px;">Reasoning:</label>
-              <select id="reasoningEffort" style="flex: 1; padding: 3px; font-size: 11px;">
-                <option value="minimal" selected>Minimal</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-              </select>
-            </div>
-            <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-              <label for="verbosity" style="font-size: 11px; font-weight: bold; white-space: nowrap; min-width: 50px;">Verbosity:</label>
-              <select id="verbosity" style="flex: 1; padding: 3px; font-size: 11px;">
-                <option value="low">Low</option>
-                <option value="medium" selected>Medium</option>
-                <option value="high">High</option>
-              </select>
-            </div>
-          </div>
+          <!-- Advanced Options: Collapsible (hidden by default) -->
+          <div style="margin-top: 8px;">
+            <button id="advancedToggle" style="padding: 4px 8px; font-size: 10px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; width: 100%;">
+              ▶ Advanced Options
+            </button>
+            <div id="advancedOptions" style="display: none; margin-top: 6px;">
+              <!-- GPT-5 Controls: Stacked vertically (shown when applicable) -->
+              <div id="gpt5Controls" style="display: none;">
+                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                  <label for="reasoningEffort" style="font-size: 11px; font-weight: bold; white-space: nowrap; min-width: 50px;">Reasoning:</label>
+                  <select id="reasoningEffort" style="flex: 1; padding: 3px; font-size: 11px;">
+                    <option value="minimal" selected>Minimal</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                  <label for="verbosity" style="font-size: 11px; font-weight: bold; white-space: nowrap; min-width: 50px;">Verbosity:</label>
+                  <select id="verbosity" style="flex: 1; padding: 3px; font-size: 11px;">
+                    <option value="low">Low</option>
+                    <option value="medium" selected>Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+              </div>
 
-          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-            <label for="tokenSlider" style="font-size: 11px; font-weight: bold; white-space: nowrap; min-width: 50px;">Tokens:</label>
-            <div style="flex: 1;">
-              <input type="range" id="tokenSlider" min="1000" max="50000" value="10000" step="1000" style="width: 100%;">
-              <div id="tokenConfig" style="font-size: 9px; color: #666;"></div>
+              <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                <label for="tokenSlider" style="font-size: 11px; font-weight: bold; white-space: nowrap; min-width: 50px;">Tokens:</label>
+                <div style="flex: 1; position: relative;">
+                  <!-- Usage bar behind slider -->
+                  <div style="position: absolute; top: 6px; left: 0; right: 0; height: 4px; background: #e0e0e0; border-radius: 2px;">
+                    <div id="tokenUsageBar" style="height: 100%; border-radius: 2px; width: 0%; transition: width 0.3s, background-color 0.3s;"></div>
+                  </div>
+                  <input type="range" id="tokenSlider" min="1000" max="50000" value="10000" step="1000" style="width: 100%; position: relative; background: transparent;">
+                  <div id="tokenConfig" style="font-size: 9px; color: #666;"></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -479,11 +491,13 @@
         <!-- Right side: Status header + list -->
         <div>
           <div id="healthStatus">
-            <h3 style="margin: 0 0 6px 0; font-size: 14px;">Model Connection Status
-              <button class="refresh-btn" id="refreshHealthBtn" style="margin-top: 4px; display: block; font-size: 10px; padding: 3px 8px;">Refresh</button>
-            </h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <h3 style="margin: 0; font-size: 14px;">Model Connection Status</h3>
+              <button class="refresh-btn" id="statusToggleBtn" style="font-size: 10px; padding: 3px 8px;">Show</button>
+            </div>
+            <div id="statusSummary" style="font-size: 11px; color: #666; margin-bottom: 4px;">Checking...</div>
           </div>
-          <div id="statusList">Checking connections...</div>
+          <div id="statusList" style="display: none;">Checking connections...</div>
         </div>
       </div>
     </div>
