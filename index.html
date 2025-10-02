@@ -169,6 +169,57 @@
       font-size: 11px;
       margin-left: 5px;
     }
+
+    /* Toast Notification Styles */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #333;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 4px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      font-size: 14px;
+      z-index: 10000;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Conversation Summary Badge */
+    .summary-badge {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 3px 8px;
+      background: #4CAF50;
+      color: white;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: help;
+      position: relative;
+    }
+    .summary-badge:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 0;
+      bottom: 100%;
+      margin-bottom: 5px;
+      background: #333;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      white-space: nowrap;
+      font-size: 11px;
+      font-weight: normal;
+      z-index: 1000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
   </style>
 </head>
 <body>
@@ -191,13 +242,16 @@
 
       <div class="model-select-wrapper">
         <label for="modelSelect">Choose Model:</label>
-        <select id="modelSelect">
-          <option value="coding_llm_api">Coding LLM</option>
-          <option value="smallest_llm_api" selected>Smallest LLM</option>
-          <option value="allaround_llm_api">All-Around LLM</option>
-          <option value="best_llm_api">Best LLM</option>
-          <option value="longest_llm_api">Longest LLM</option>
-        </select>
+        <div style="display: flex; align-items: center;">
+          <select id="modelSelect" style="flex: 1;">
+            <option value="coding_llm_api">Coding LLM</option>
+            <option value="smallest_llm_api" selected>Smallest LLM</option>
+            <option value="allaround_llm_api">All-Around LLM</option>
+            <option value="best_llm_api">Best LLM</option>
+            <option value="longest_llm_api">Longest LLM</option>
+          </select>
+          <span id="summaryBadge" class="summary-badge" style="display: none;" data-tooltip="Conversation history compressed"></span>
+        </div>
         <div style="margin-top: 12px;">
           <label for="tokenSlider" style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 4px;">Response Length (tokens):</label>
           <input type="range" id="tokenSlider" min="1000" max="50000" value="10000" step="1000" style="width: 100%; margin-bottom: 4px;">
@@ -227,6 +281,9 @@
 
   <div id="chatbox"></div>
 
+  <!-- Toast Notification Container -->
+  <div id="toastContainer"></div>
+
   <script>
     let modelMetadata = {};
     let uploadedFiles = [];
@@ -234,6 +291,68 @@
     let maxCompletionTokens = 12800; // Default, will be updated by slider
     let currentInputContextWindow = 128 * 1024; // Default 128K, updated per model
     let currentOutputContextWindow = 128 * 1024;
+
+    // ============================================================================
+    // Toast Notification System
+    // ============================================================================
+
+    let toastTimeout = null;
+
+    /**
+     * Show a toast notification
+     * @param {string} message - Message to display
+     * @param {number} duration - Duration in milliseconds (default: 2000)
+     */
+    function showToast(message, duration = 2000) {
+      const container = document.getElementById('toastContainer');
+
+      // Remove existing toast if any
+      const existing = document.querySelector('.toast');
+      if (existing) {
+        existing.remove();
+        clearTimeout(toastTimeout);
+      }
+
+      // Create new toast
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      // Trigger animation
+      setTimeout(() => toast.classList.add('show'), 10);
+
+      // Auto-hide after duration
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300); // Remove after fade out
+      }, duration);
+    }
+
+    /**
+     * Update the summary badge display
+     * @param {number} messageCount - Current number of messages
+     * @param {boolean} hasSummary - Whether conversation has been compressed
+     */
+    function updateSummaryBadge(messageCount, hasSummary) {
+      const badge = document.getElementById('summaryBadge');
+
+      if (hasSummary) {
+        badge.style.display = 'inline-block';
+        badge.textContent = `📝 ${messageCount} msgs`;
+        badge.setAttribute('data-tooltip', `Conversation compressed (${messageCount} recent messages + summary)`);
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    /**
+     * Hide the summary badge
+     */
+    function hideSummaryBadge() {
+      const badge = document.getElementById('summaryBadge');
+      badge.style.display = 'none';
+    }
 
     // Check authentication status
     async function checkAuthStatus() {
@@ -352,6 +471,16 @@ Best for: ${metadata.specialties || 'N/A'}`;
         const answer = data.answer || '(empty response from chat model)';
         chatbox.innerHTML += `<div class='bot'><strong>Bot:</strong> ${answer}</div>`;
         chatbox.scrollTop = chatbox.scrollHeight;
+
+        // Handle compression info if present
+        if (data.compression) {
+          if (data.compression.compressed) {
+            showToast('💭 Conversation compressed', 2000);
+          }
+          if (data.compression.hasSummary) {
+            updateSummaryBadge(data.compression.messageCount, true);
+          }
+        }
       } catch (err) {
         console.error('Chat error:', err);
         chatbox.innerHTML += `<div class='bot'><strong>Bot:</strong> Error: ${err.message}</div>`;
@@ -554,34 +683,42 @@ Best for: ${metadata.specialties || 'N/A'}`;
 
       modelSelect.addEventListener('change', async (e) => {
         const newModel = e.target.value;
-        const chatbox = document.getElementById('chatbox');
+        // const chatbox = document.getElementById('chatbox');
 
+        // DISABLED: Model switch warning popup (now using ConversationSummaryMemory)
+        // Previously, switching models would clear chat history with a warning dialog.
+        // Now conversation history is preserved across model switches with automatic compression.
+        //
         // If there's chat history, warn user before switching
-        if (chatbox.innerHTML.trim() !== '' && newModel !== previousModel) {
-          const previousModelName = modelMetadata[previousModel]?.displayName || previousModel;
-          const newModelName = modelMetadata[newModel]?.displayName || newModel;
+        // if (chatbox.innerHTML.trim() !== '' && newModel !== previousModel) {
+        //   const previousModelName = modelMetadata[previousModel]?.displayName || previousModel;
+        //   const newModelName = modelMetadata[newModel]?.displayName || newModel;
+        //
+        //   const confirmed = confirm(
+        //     `⚠️ Switching Models Will Clear Conversation History\n\n` +
+        //     `Changing from "${previousModelName}" to "${newModelName}" will start a fresh conversation.\n` +
+        //     `Previous messages will be cleared.\n\n` +
+        //     `Click OK to clear chat and switch models, or Cancel to stay on current model.`
+        //   );
+        //
+        //   if (confirmed) {
+        //     // Clear the chat
+        //     chatbox.innerHTML = '';
+        //     previousModel = newModel;
+        //     await updateContextWindowForModel(newModel);
+        //   } else {
+        //     // Revert selection
+        //     modelSelect.value = previousModel;
+        //   }
+        // } else {
+        //   // No chat history, just switch
+        //   previousModel = newModel;
+        //   await updateContextWindowForModel(newModel);
+        // }
 
-          const confirmed = confirm(
-            `⚠️ Switching Models Will Clear Conversation History\n\n` +
-            `Changing from "${previousModelName}" to "${newModelName}" will start a fresh conversation.\n` +
-            `Previous messages will be cleared.\n\n` +
-            `Click OK to clear chat and switch models, or Cancel to stay on current model.`
-          );
-
-          if (confirmed) {
-            // Clear the chat
-            chatbox.innerHTML = '';
-            previousModel = newModel;
-            await updateContextWindowForModel(newModel);
-          } else {
-            // Revert selection
-            modelSelect.value = previousModel;
-          }
-        } else {
-          // No chat history, just switch
-          previousModel = newModel;
-          await updateContextWindowForModel(newModel);
-        }
+        // NEW BEHAVIOR: Seamless model switching with conversation memory
+        previousModel = newModel;
+        await updateContextWindowForModel(newModel);
       });
 
       // Load initial context window for default model
