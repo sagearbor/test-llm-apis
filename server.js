@@ -226,7 +226,7 @@ function getConversationMemory(session) {
 
   // Create a new ConversationMemory instance and restore state
   const memory = new ConversationMemory(null, {
-    compressionThreshold: 0.6,
+    compressionThreshold: 0.6, // Compress at 60% of model's context window
     keepRecentCount: 10
   });
 
@@ -533,19 +533,24 @@ app.post('/chat', requireAuth, async (req, res) => {
 
   // Get messages with automatic compression if needed
   let conversationMessages;
-  let compressionInfo = null;
+  let memoryInfo = null;
   try {
+    // Get stats before compression (access properties directly, not through method)
+    const hadSummaryBefore = !!memory.summary;
+    const messageCountBefore = memory.messages.length;
+
     conversationMessages = await memory.getMessagesForModel(modelContextWindow, model);
 
-    // Check if compression happened
-    const stats = memory.getStats();
-    if (stats.hasSummary) {
-      compressionInfo = {
-        compressed: true,
-        messageCount: stats.messageCount,
-        hasSummary: true
-      };
-    }
+    // Always send memory info to frontend for badge display
+    const messageCountAfter = memory.messages.length;
+    const hasSummaryAfter = !!memory.summary;
+    const compressionHappened = hasSummaryAfter && (!hadSummaryBefore || (messageCountAfter < messageCountBefore));
+
+    memoryInfo = {
+      messageCount: messageCountAfter,
+      hasSummary: hasSummaryAfter,
+      compressed: compressionHappened  // Only true when compression just happened this request
+    };
   } catch (err) {
     console.error('Error getting conversation messages:', err);
     conversationMessages = [{ role: 'user', content: finalPrompt }];
@@ -616,13 +621,15 @@ app.post('/chat', requireAuth, async (req, res) => {
     memory.addMessage('assistant', answer);
 
     console.log('Extracted answer:', answer);
+    console.log('Memory info:', JSON.stringify(memoryInfo));
 
-    // Return answer with compression info
+    // Return answer with memory info
     const responseData = { answer };
-    if (compressionInfo) {
-      responseData.compression = compressionInfo;
+    if (memoryInfo) {
+      responseData.memory = memoryInfo;
     }
 
+    console.log('Sending response:', JSON.stringify(responseData));
     res.json(responseData);
   } catch (error) {
     console.error('Fetch error:', error);
