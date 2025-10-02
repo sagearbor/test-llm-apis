@@ -157,12 +157,12 @@ updateSummaryBadge(messageCount, hasSummary)
 ### Manual Testing Steps
 - [x] Install dependencies
 - [x] Server starts without errors
-- [ ] Send 1st message - should work, no badge
-- [ ] Send 10 more messages - should still work
-- [ ] Send 11th message - should trigger compression
-- [ ] Verify toast appears: "💭 Conversation compressed"
-- [ ] Verify badge appears: "📝 10 msgs"
-- [ ] Switch models - conversation should continue
+- [x] Send 1st message - should work, no badge
+- [x] Send 10 more messages - should still work
+- [x] Send 11th message - should trigger compression
+- [x] Verify toast appears: "💭 Conversation compressed"
+- [x] Verify badge appears: "📝 10 msgs"
+- [x] Switch models - conversation should continue
 - [ ] Check server logs for "Compressed conversation: X → Y"
 
 ### Known Issues
