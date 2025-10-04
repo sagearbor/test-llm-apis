@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics Dashboard - DIAL</title>
+  <link rel="icon" type="image/x-icon" href="assets/dial-icon.ico">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Development Banner */
+    #devBanner {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+      color: white;
+      text-align: center;
+      padding: 12px;
+      font-weight: bold;
+      font-size: 14px;
+      border-top: 3px solid #c92a2a;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.2);
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 10001;
+    }
+
+    /* Navbar */
+    #navbar {
+      background: #1976D2;
+      padding: 0;
+      position: sticky;
+      top: 0;
+      z-index: 10000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    #navbar ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+    }
+    #navbar li {
+      position: relative;
+    }
+    #navbar a {
+      display: block;
+      color: white;
+      text-decoration: none;
+      padding: 15px 20px;
+      transition: background 0.3s;
+    }
+    #navbar a:hover {
+      background: #1565C0;
+    }
+    #navbar .dropdown {
+      position: relative;
+    }
+    #navbar .dropdown-content {
+      display: none;
+      position: absolute;
+      background: white;
+      min-width: 200px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      z-index: 1;
+    }
+    #navbar .dropdown-content a {
+      color: #333;
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+    }
+    #navbar .dropdown-content a:hover {
+      background: #f5f5f5;
+    }
+    #navbar .dropdown:hover .dropdown-content {
+      display: block;
+    }
+
+    /* Password Modal */
+    #passwordModal {
+      display: none;
+      position: fixed;
+      z-index: 10002;
+      left: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.6);
+    }
+    #passwordModal .modal-content {
+      background-color: #fefefe;
+      margin: 15% auto;
+      padding: 30px;
+      border: 1px solid #888;
+      width: 90%;
+      max-width: 400px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    #passwordModal input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin: 15px 0;
+      font-size: 16px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+    }
+    #passwordModal button {
+      padding: 10px 30px;
+      margin: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+    }
+    #passwordModal .submit-btn {
+      background: #4CAF50;
+      color: white;
+    }
+    #passwordModal .cancel-btn {
+      background: #f44336;
+      color: white;
+    }
+    #passwordError {
+      color: #f44336;
+      font-size: 13px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    /* Main Content */
+    #mainContent {
+      padding: 30px 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #1976D2;
+      margin-bottom: 10px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 15px;
+      border-radius: 6px;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+      border-left: 4px solid #1976D2;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: #666;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .stat-unit {
+      font-size: 14px;
+      color: #999;
+      margin-left: 3px;
+    }
+
+    .chart-container {
+      background: white;
+      padding: 25px;
+      border-radius: 8px;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+      margin: 20px 0;
+    }
+
+    .chart-container h3 {
+      margin-bottom: 0;
+      left: 0;
+      right: 0;
+      color: #1976D2;
+      border-bottom: 2px solid #1976D2;
+      padding-bottom: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    th {
+      background: #f5f5f5;
+      padding: 12px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: bold;
+      border-bottom: 2px solid #ddd;
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+    }
+
+    tr:hover {
+      background: #f9f9f9;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+      font-size: 16px;
+    }
+
+    .error {
+      background: #ffebee;
+      color: #c62828;
+      padding: 15px;
+      border-radius: 4px;
+      border-left: 4px solid #c62828;
+      margin: 20px 0;
+    }
+
+    .bar-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .bar-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .bar-label {
+      min-width: 120px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .bar-visual {
+      flex: 1;
+      height: 30px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #1976D2, #42A5F5);
+      border-radius: 4px;
+      transition: width 0.5s ease;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 10px;
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <!-- Development Banner (conditionally shown) -->
+  <div id="devBanner" style="display: none;">
+    ⚠️ DEVELOPMENT MODE - DO NOT USE WITH REAL DATA ⚠️
+  </div>
+
+  <!-- Navigation Bar -->
+  <nav id="navbar">
+    <ul>
+      <li style="padding: 8px 15px;">
+        <img src="assets/dial-icon.ico" alt="DIAL" width="32" height="32" style="vertical-align: middle;">
+      </li>
+      <li><a href="/">Chat</a></li>
+      <li class="dropdown">
+        <a href="#">Dashboard ▼</a>
+        <div class="dropdown-content">
+          <a href="/dashboard-analytics.html">Analytics Dashboard</a>
+          <a href="#" id="adminDashboardLink">Admin Dashboard</a>
+        </div>
+      </li>
+      <li><a href="/about.html">About</a></li>
+    </ul>
+  </nav>
+
+  <!-- Password Modal -->
+  <div id="passwordModal">
+    <div class="modal-content">
+      <h2>🔒 Admin Access Required</h2>
+      <p>Please enter the admin password:</p>
+      <input type="password" id="adminPasswordInput" placeholder="Enter password">
+      <div id="passwordError">Incorrect password. Please try again.</div>
+      <div>
+        <button class="submit-btn" id="passwordSubmit">Submit</button>
+        <button class="cancel-btn" id="passwordCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mainContent">
+    <h1>📊 Analytics Dashboard</h1>
+    <p style="color: #666;">Your usage statistics and insights</p>
+
+    <div id="loadingIndicator" class="loading">
+      Loading analytics data...
+    </div>
+
+    <div id="errorContainer"></div>
+
+    <div id="analyticsContent" style="display: none;">
+      <!-- Summary Stats -->
+      <div class="stats-grid" id="summaryStats">
+        <!-- Stats will be inserted here -->
+      </div>
+
+      <!-- Usage Over Time Chart -->
+      <div class="chart-container">
+        <h3>Usage Over Time</h3>
+        <canvas id="usageOverTimeCanvas" width="900" height="400"></canvas>
+      </div>
+
+      <!-- Usage by Model -->
+      <div class="chart-container">
+        <h3>Usage by Model</h3>
+        <div class="bar-chart" id="modelChart">
+          <!-- Chart will be inserted here -->
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="chart-container">
+        <h3>Recent Activity</h3>
+        <table id="recentActivity">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Model</th>
+              <th>Tokens</th>
+              <th>Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Rows will be inserted here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Password modal logic
+    const adminDashboardLink = document.getElementById('adminDashboardLink');
+    const passwordModal = document.getElementById('passwordModal');
+    const passwordInput = document.getElementById('adminPasswordInput');
+    const passwordSubmit = document.getElementById('passwordSubmit');
+    const passwordCancel = document.getElementById('passwordCancel');
+    const passwordError = document.getElementById('passwordError');
+
+    if (adminDashboardLink && passwordModal) {
+      adminDashboardLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        passwordModal.style.display = 'block';
+        passwordInput.value = '';
+        passwordError.style.display = 'none';
+        setTimeout(() => passwordInput.focus(), 100);
+      });
+
+      passwordSubmit.addEventListener('click', () => {
+        const password = passwordInput.value.trim().toLowerCase();
+        if (password === 'dialadmin') {
+          passwordModal.style.display = 'none';
+          window.location.href = '/dashboard-admin.html';
+        } else {
+          passwordError.style.display = 'block';
+          passwordInput.value = '';
+          passwordInput.focus();
+        }
+      });
+
+      passwordCancel.addEventListener('click', () => {
+        passwordModal.style.display = 'none';
+      });
+
+      passwordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          passwordSubmit.click();
+        }
+      });
+
+      passwordModal.addEventListener('click', (e) => {
+        if (e.target === passwordModal) {
+          passwordModal.style.display = 'none';
+        }
+      });
+    }
+
+    // Check environment and show dev banner
+    async function checkEnvironment() {
+      try {
+        const response = await fetch('/api/environment');
+        const data = await response.json();
+
+        const devBanner = document.getElementById('devBanner');
+        if (data.isDevelopment && devBanner) {
+          devBanner.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Error checking environment:', error);
+      }
+    }
+
+    // Log page visit
+    async function logPageVisit() {
+      try {
+        await fetch('/api/log-visit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            page: 'dashboard-analytics',
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent
+          })
+        });
+      } catch (error) {
+        console.error('Error logging page visit:', error);
+      }
+    }
+
+    // Load analytics data
+    async function loadAnalytics() {
+      try {
+        // Fetch usage summary
+        const summaryResponse = await fetch('/api/usage/summary');
+        if (!summaryResponse.ok) throw new Error('Failed to fetch summary');
+        const summary = await summaryResponse.json();
+
+        // Fetch costs by model
+        const costsResponse = await fetch('/api/usage/costs');
+        if (!costsResponse.ok) throw new Error('Failed to fetch costs');
+        const costs = await costsResponse.json();
+
+        // Hide loading, show content
+        document.getElementById('loadingIndicator').style.display = 'none';
+        document.getElementById('analyticsContent').style.display = 'block';
+
+        // Render summary stats
+        renderSummaryStats(summary);
+
+        // Render usage over time chart
+        renderUsageOverTime(summary);
+
+        // Render model usage chart (costs is the array directly)
+        renderModelChart(Array.isArray(costs) ? costs : costs.modelBreakdown || []);
+
+        // Render recent activity
+        renderRecentActivity(costs);
+
+      } catch (error) {
+        console.error('Error loading analytics:', error);
+        document.getElementById('loadingIndicator').style.display = 'none';
+        document.getElementById('errorContainer').innerHTML = `
+          <div class="error">
+            <strong>Error:</strong> Unable to load analytics data. ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    function renderSummaryStats(summary) {
+      const statsContainer = document.getElementById('summaryStats');
+      const totalQueries = summary.totalRequests || summary.total_queries || 0;
+      const totalTokens = summary.totalTokens || summary.total_tokens || 0;
+      const totalCost = summary.totalCost || summary.total_cost || 0;
+
+      statsContainer.innerHTML = `
+        <div class="stat-card">
+          <div class="stat-label">Total Queries</div>
+          <div class="stat-value">${totalQueries}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Tokens</div>
+          <div class="stat-value">${totalTokens.toLocaleString()}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Cost</div>
+          <div class="stat-value">$${totalCost.toFixed(4)}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Tokens/Query</div>
+          <div class="stat-value">${totalQueries > 0 ? Math.round(totalTokens / totalQueries) : 0}</div>
+        </div>
+      `;
+    }
+
+    let usageChart = null; // Store chart instance
+
+    function renderUsageOverTime(summary) {
+      const canvas = document.getElementById('usageOverTimeCanvas');
+      if (!canvas) return;
+
+      if (!summary.modelUsage || Object.keys(summary.modelUsage).length === 0) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#666';
+        ctx.font = '14px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('No usage data available yet', canvas.width/2, canvas.height/2);
+        return;
+      }
+
+      // Destroy existing chart if it exists
+      if (usageChart) {
+        usageChart.destroy();
+      }
+
+      const hourlyData = summary.hourlyUsage || {};
+      const modelData = summary.modelUsage || {};
+      const allModels = Object.keys(modelData);
+      const modelColors = {
+        'coding_llm_api': 'rgba(255, 107, 107, 0.8)',
+        'smallest_llm_api': 'rgba(78, 205, 196, 0.8)',
+        'allaround_llm_api': 'rgba(69, 183, 209, 0.8)',
+        'best_llm_api': 'rgba(255, 160, 122, 0.8)',
+        'longest_llm_api': 'rgba(152, 216, 200, 0.8)',
+        'unknown': 'rgba(153, 153, 153, 0.8)'
+      };
+      const modelDisplayNames = {
+        'coding_llm_api': 'Coding LLM',
+        'smallest_llm_api': 'Smallest LLM',
+        'allaround_llm_api': 'All-Around LLM',
+        'best_llm_api': 'Best LLM',
+        'longest_llm_api': 'Longest LLM',
+        'unknown': 'Unknown'
+      };
+
+      const timeKeys = Object.keys(hourlyData).sort();
+      if (timeKeys.length === 0) return;
+
+      // Check if we have multiple days
+      const dates = timeKeys.map(k => k.substring(0, 10));
+      const uniqueDates = new Set(dates);
+      const hasMultipleDays = uniqueDates.size > 1;
+
+      // Format time labels in EST
+      const formatTimeLabel = (timestamp) => {
+        const date = new Date(timestamp + ':00:00Z');
+        if (isNaN(date.getTime())) return timestamp;
+
+        // Convert to EST (UTC-5)
+        const estDate = new Date(date.getTime() - 5 * 60 * 60 * 1000);
+        const month = estDate.getUTCMonth() + 1;
+        const day = estDate.getUTCDate();
+        const hour = estDate.getUTCHours();
+        const ampm = hour >= 12 ? 'pm' : 'am';
+        const hour12 = hour % 12 || 12;
+
+        if (hasMultipleDays) {
+          return `${month}/${day} ${hour12}${ampm}`;
+        }
+        return `${hour12}${ampm} EST`;
+      };
+
+      const labels = timeKeys.map(formatTimeLabel);
+
+      // Prepare datasets for stacked bar chart (one dataset per model)
+      const datasets = allModels.map(model => ({
+        label: modelDisplayNames[model] || model,
+        data: timeKeys.map(key => hourlyData[key].models?.[model]?.tokens || 0),
+        backgroundColor: modelColors[model] || modelColors['unknown'],
+        stack: 'tokens'
+      }));
+
+      // Add cumulative lines
+      let cumulativeTokens = [];
+      let cumulativeCosts = [];
+      let tokenSum = 0, costSum = 0;
+      timeKeys.forEach(key => {
+        tokenSum += hourlyData[key].tokens || 0;
+        costSum += hourlyData[key].cost || 0;
+        cumulativeTokens.push(tokenSum);
+        cumulativeCosts.push(costSum);
+      });
+
+      datasets.push({
+        label: 'Cumulative Tokens',
+        data: cumulativeTokens,
+        type: 'line',
+        borderColor: 'rgba(76, 175, 80, 1)',
+        backgroundColor: 'rgba(76, 175, 80, 0.1)',
+        borderWidth: 3,
+        yAxisID: 'y',
+        order: 0
+      });
+
+      datasets.push({
+        label: 'Cumulative Cost',
+        data: cumulativeCosts,
+        type: 'line',
+        borderColor: 'rgba(244, 67, 54, 1)',
+        backgroundColor: 'rgba(244, 67, 54, 0.1)',
+        borderWidth: 3,
+        yAxisID: 'y1',
+        order: 0
+      });
+
+      // Create Chart.js chart
+      usageChart = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false
+          },
+          scales: {
+            x: {
+              stacked: true,
+              title: {
+                display: true,
+                text: 'Time (EST)'
+              }
+            },
+            y: {
+              stacked: true,
+              position: 'left',
+              title: {
+                display: true,
+                text: 'Tokens'
+              }
+            },
+            y1: {
+              position: 'right',
+              title: {
+                display: true,
+                text: 'Cost ($)'
+              },
+              grid: {
+                drawOnChartArea: false
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: true,
+              position: 'top'
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) {
+                    label += ': ';
+                  }
+                  if (context.dataset.yAxisID === 'y1') {
+                    label += '$' + context.parsed.y.toFixed(4);
+                  } else {
+                    label += context.parsed.y + ' tokens';
+                  }
+                  return label;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderModelChart(modelBreakdown) {
+      if (!modelBreakdown || modelBreakdown.length === 0) {
+        document.getElementById('modelChart').innerHTML = '<p style="color: #666;">No usage data available yet.</p>';
+        return;
+      }
+
+      const maxTokens = Math.max(...modelBreakdown.map(m => m.totalTokens || m.total_tokens || 0));
+      const chartHtml = modelBreakdown.map(model => {
+        const tokens = model.totalTokens || model.total_tokens || 0;
+        const percentage = maxTokens > 0 ? (tokens / maxTokens) * 100 : 0;
+        const modelName = model.model || model.model_name || 'Unknown';
+        return `
+          <div class="bar-item">
+            <div class="bar-label">${modelName}</div>
+            <div class="bar-visual">
+              <div class="bar-fill" style="width: ${percentage}%">
+                ${tokens.toLocaleString()} tokens
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('modelChart').innerHTML = chartHtml;
+    }
+
+    function renderRecentActivity(costs) {
+      const tbody = document.querySelector('#recentActivity tbody');
+
+      if (!costs || costs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #666;">No recent activity</td></tr>';
+        return;
+      }
+
+      // Show model summaries as "recent activity"
+      const activityHtml = costs.map(model => {
+        const modelName = model.model || 'Unknown';
+        const totalTokens = model.totalTokens || 0;
+        const totalCost = model.totalCost || 0;
+        const requests = model.requests || 0;
+
+        return `
+          <tr>
+            <td>${requests} queries</td>
+            <td>${modelName}</td>
+            <td>${totalTokens.toLocaleString()}</td>
+            <td>$${totalCost.toFixed(4)}</td>
+          </tr>
+        `;
+      }).join('');
+
+      tbody.innerHTML = activityHtml;
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      checkEnvironment();
+      logPageVisit();
+      loadAnalytics();
+    });
+  </script>
+</body>
+</html>
