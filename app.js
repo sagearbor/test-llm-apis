@@ -1005,4 +1005,104 @@ Best for: ${metadata.specialties || 'N/A'}`;
         // Focus input field
         userInput.focus();
       }
+
+      // ============================================================================
+      // Development Banner & Environment Check
+      // ============================================================================
+      checkEnvironment();
+
+      // ============================================================================
+      // Admin Dashboard Password Protection
+      // ============================================================================
+      const adminDashboardLink = document.getElementById('adminDashboardLink');
+      const passwordModal = document.getElementById('passwordModal');
+      const passwordInput = document.getElementById('adminPasswordInput');
+      const passwordSubmit = document.getElementById('passwordSubmit');
+      const passwordCancel = document.getElementById('passwordCancel');
+      const passwordError = document.getElementById('passwordError');
+
+      if (adminDashboardLink && passwordModal) {
+        adminDashboardLink.addEventListener('click', (e) => {
+          e.preventDefault();
+          passwordModal.style.display = 'block';
+          passwordInput.value = '';
+          passwordError.style.display = 'none';
+          setTimeout(() => passwordInput.focus(), 100);
+        });
+
+        passwordSubmit.addEventListener('click', () => {
+          const password = passwordInput.value.trim().toLowerCase();
+          if (password === 'dialadmin') {
+            passwordModal.style.display = 'none';
+            window.open('/dashboard-admin.html', '_blank');
+          } else {
+            passwordError.style.display = 'block';
+            passwordInput.value = '';
+            passwordInput.focus();
+          }
+        });
+
+        passwordCancel.addEventListener('click', () => {
+          passwordModal.style.display = 'none';
+        });
+
+        passwordInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            passwordSubmit.click();
+          }
+        });
+
+        // Close modal when clicking outside
+        passwordModal.addEventListener('click', (e) => {
+          if (e.target === passwordModal) {
+            passwordModal.style.display = 'none';
+          }
+        });
+      }
+
+      // ============================================================================
+      // Page Visit Logging
+      // ============================================================================
+      logPageVisit();
     });
+
+    // ============================================================================
+    // Helper Functions for New Features
+    // ============================================================================
+
+    /**
+     * Check environment and show dev banner if in development mode
+     */
+    async function checkEnvironment() {
+      try {
+        const response = await fetch('/api/environment');
+        const data = await response.json();
+
+        const devBanner = document.getElementById('devBanner');
+        if (data.isDevelopment && devBanner) {
+          devBanner.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Error checking environment:', error);
+      }
+    }
+
+    /**
+     * Log page visit to server
+     */
+    async function logPageVisit() {
+      try {
+        const pageName = window.location.pathname === '/' ? 'chat' : window.location.pathname.replace('/', '').replace('.html', '');
+        await fetch('/api/log-visit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            page: pageName,
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent
+          })
+        });
+      } catch (error) {
+        console.error('Error logging page visit:', error);
+      }
+    }

@@ -68,7 +68,16 @@ app.use(session({
   cookie: envConfig.session // Use environment-specific cookie settings
 }));
 
-app.use(express.static('.')); // serve index.html
+// Disable caching for HTML files in development
+app.use(express.static('.', {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // Get deployment mapping from config
 const deploymentMap = modelConfig.getDeploymentMap();
@@ -697,21 +706,19 @@ app.post('/chat', requireAuth, async (req, res) => {
       // Enhanced error message with troubleshooting info
       const errorMsg = data.error?.message || JSON.stringify(data);
 
-      // Record failed request
-      if (isOAuthEnabled()) {
-        await recordUsage({
-          userEmail,
-          userId,
-          model,
-          deployment: deploymentName,
-          inputTokens: 0,
-          outputTokens: 0,
-          sessionId: req.session?.id,
-          fileAttached: !!fileId,
-          success: false,
-          errorMessage: errorMsg
-        });
-      }
+      // Record failed request (track usage even when OAuth is disabled)
+      await recordUsage({
+        userEmail,
+        userId,
+        model,
+        deployment: deploymentName,
+        inputTokens: 0,
+        outputTokens: 0,
+        sessionId: req.session?.id,
+        fileAttached: !!fileId,
+        success: false,
+        errorMessage: errorMsg
+      });
 
       throw new Error(`${errorMsg}. Deployment: ${deploymentName}, API: Responses API (v1)`);
     }
@@ -735,23 +742,21 @@ app.post('/chat', requireAuth, async (req, res) => {
     // Extract token counts for usage tracking from Responses API format
     const tokenCounts = extractTokenCounts(data, true); // Always use Responses API format
 
-    // Record usage to CSV
-    if (isOAuthEnabled()) {
-      const costs = await recordUsage({
-        userEmail,
-        userId,
-        model,
-        deployment: deploymentName,
-        inputTokens: tokenCounts.prompt_tokens,
-        outputTokens: tokenCounts.completion_tokens,
-        sessionId: req.session?.id,
-        fileAttached: !!fileId,
-        success: true,
-        errorMessage: ''
-      });
+    // Record usage to CSV (track usage even when OAuth is disabled)
+    const costs = await recordUsage({
+      userEmail,
+      userId,
+      model,
+      deployment: deploymentName,
+      inputTokens: tokenCounts.prompt_tokens,
+      outputTokens: tokenCounts.completion_tokens,
+      sessionId: req.session?.id,
+      fileAttached: !!fileId,
+      success: true,
+      errorMessage: ''
+    });
 
-      console.log(`Usage recorded: ${userEmail} - ${tokenCounts.total_tokens} tokens, $${costs.totalCost}`);
-    }
+    console.log(`Usage recorded: ${userEmail} - ${tokenCounts.total_tokens} tokens, $${costs.totalCost}`);
 
     // Add assistant response to conversation memory
     memory.addMessage('assistant', answer);
@@ -890,6 +895,84 @@ app.get('/api/admin/usage', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error getting all users usage:', error);
     res.status(500).json({ error: 'Failed to get all users usage' });
+  }
+});
+
+// ============================================================================
+// Environment & Navigation Features
+// ============================================================================
+
+// Get environment status (development vs production)
+app.get('/api/environment', (req, res) => {
+  const isDevelopment = process.env.NODE_ENV !== 'production';
+  res.json({ isDevelopment });
+});
+
+// Log page visits
+app.post('/api/log-visit', express.json(), async (req, res) => {
+  try {
+    const { page, timestamp, userAgent } = req.body;
+    const logLine = `${timestamp},${page},${userAgent}\n`;
+
+    const logFile = path.join(process.cwd(), 'access-log.csv');
+
+    // Create file with header if it doesn't exist
+    try {
+      await fs.access(logFile);
+    } catch {
+      await fs.writeFile(logFile, 'Timestamp,Page,UserAgent\n');
+    }
+
+    // Append log entry
+    await fs.appendFile(logFile, logLine);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error logging page visit:', error);
+    res.status(500).json({ error: 'Failed to log visit' });
+  }
+});
+
+// Get access logs (for admin dashboard)
+app.get('/api/access-logs', async (req, res) => {
+  try {
+    const logFile = path.join(process.cwd(), 'access-log.csv');
+
+    // Check if file exists
+    try {
+      await fs.access(logFile);
+    } catch {
+      return res.json({ logs: [] });
+    }
+
+    // Read and parse CSV
+    const csvData = await fs.readFile(logFile, 'utf8');
+    const lines = csvData.split('\n').filter(line => line.trim());
+
+    if (lines.length <= 1) {
+      return res.json({ logs: [] });
+    }
+
+    // Parse CSV (skip header)
+    const logs = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      // Simple CSV parsing (timestamp,page,userAgent)
+      const firstComma = line.indexOf(',');
+      const secondComma = line.indexOf(',', firstComma + 1);
+
+      if (firstComma > 0 && secondComma > firstComma) {
+        logs.push({
+          timestamp: line.substring(0, firstComma),
+          page: line.substring(firstComma + 1, secondComma),
+          userAgent: line.substring(secondComma + 1).replace(/^"|"$/g, '')
+        });
+      }
+    }
+
+    res.json({ logs });
+  } catch (error) {
+    console.error('Error reading access logs:', error);
+    res.status(500).json({ error: 'Failed to read access logs' });
   }
 });
 

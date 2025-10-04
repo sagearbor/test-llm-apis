@@ -17,7 +17,88 @@
   <title>DIAL - DCRI Intelligent AI Liaison</title>
   <link rel="icon" type="image/x-icon" href="assets/dial-icon.ico">
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 1200px; margin: 0 auto; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Development Banner */
+    #devBanner {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+      color: white;
+      text-align: center;
+      padding: 12px;
+      font-weight: bold;
+      font-size: 14px;
+      border-top: 3px solid #c92a2a;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.2);
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 10001;
+    }
+
+    /* Navbar */
+    #navbar {
+      background: #1976D2;
+      padding: 0;
+      position: sticky;
+      top: 0;
+      z-index: 10000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    #navbar ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+    }
+    #navbar li {
+      position: relative;
+    }
+    #navbar a {
+      display: block;
+      color: white;
+      text-decoration: none;
+      padding: 15px 20px;
+      transition: background 0.3s;
+    }
+    #navbar a:hover {
+      background: #1565C0;
+    }
+    #navbar .dropdown {
+      position: relative;
+    }
+    #navbar .dropdown-content {
+      display: none;
+      position: absolute;
+      background: white;
+      min-width: 200px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      z-index: 1;
+    }
+    #navbar .dropdown-content a {
+      color: #333;
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+    }
+    #navbar .dropdown-content a:hover {
+      background: #f5f5f5;
+    }
+    #navbar .dropdown:hover .dropdown-content {
+      display: block;
+    }
+
+    /* Main Content */
+    #mainContent {
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
     select, input, button { margin: 5px 0; padding: 5px; }
     #chatbox { border: 1px solid #ccc; height: 400px; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
     .user { color: blue; }
@@ -408,9 +489,99 @@
       z-index: 1000;
       box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
+
+    /* Password Modal */
+    #passwordModal {
+      display: none;
+      position: fixed;
+      z-index: 10002;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.6);
+    }
+    #passwordModal .modal-content {
+      background-color: #fefefe;
+      margin: 15% auto;
+      padding: 30px;
+      border: 1px solid #888;
+      width: 90%;
+      max-width: 400px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    #passwordModal input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin: 15px 0;
+      font-size: 16px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+    }
+    #passwordModal button {
+      padding: 10px 30px;
+      margin: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+    }
+    #passwordModal .submit-btn {
+      background: #4CAF50;
+      color: white;
+    }
+    #passwordModal .cancel-btn {
+      background: #f44336;
+      color: white;
+    }
+    #passwordError {
+      color: #f44336;
+      font-size: 13px;
+      margin-top: 10px;
+      display: none;
+    }
   </style>
 </head>
 <body>
+  <!-- Development Banner (conditionally shown) -->
+  <div id="devBanner" style="display: none;">
+    ⚠️ DEVELOPMENT MODE - DO NOT USE WITH REAL DATA ⚠️
+  </div>
+
+  <!-- Navigation Bar -->
+  <nav id="navbar">
+    <ul>
+      <li style="padding: 8px 15px;">
+        <img src="assets/dial-icon.ico" alt="DIAL" width="32" height="32" style="vertical-align: middle;">
+      </li>
+      <li><a href="/">Chat</a></li>
+      <li class="dropdown">
+        <a href="#">Dashboard ▼</a>
+        <div class="dropdown-content">
+          <a href="/dashboard-analytics.html" target="_blank">Analytics Dashboard</a>
+          <a href="#" id="adminDashboardLink">Admin Dashboard</a>
+        </div>
+      </li>
+      <li><a href="/about.html" target="_blank">About</a></li>
+    </ul>
+  </nav>
+
+  <!-- Password Modal -->
+  <div id="passwordModal">
+    <div class="modal-content">
+      <h2>🔒 Admin Access Required</h2>
+      <p>Please enter the admin password:</p>
+      <input type="password" id="adminPasswordInput" placeholder="Enter password">
+      <div id="passwordError">Incorrect password. Please try again.</div>
+      <div>
+        <button class="submit-btn" id="passwordSubmit">Submit</button>
+        <button class="cancel-btn" id="passwordCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mainContent">
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
     <h1 style="margin: 0; display: flex; align-items: center; gap: 10px;">
       <img src="assets/dial-icon.ico" alt="DIAL" width="40" height="40" style="flex-shrink: 0;">
@@ -570,6 +741,8 @@
       </div>
     </div>
   </div>
+
+  </div><!-- End mainContent -->
 
   <!-- All JavaScript moved to external file for strict CSP compliance -->
   <script src="app.js"></script>
