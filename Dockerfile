@@ -31,6 +31,9 @@ COPY --chown=nodejs:nodejs *.js ./
 COPY --chown=nodejs:nodejs *.html ./
 COPY --chown=nodejs:nodejs package*.json ./
 
+# Copy test data required by pdf-parse module
+COPY --chown=nodejs:nodejs test ./test
+
 # Set environment variables
 ENV NODE_ENV=production \
     PORT=3000

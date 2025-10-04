@@ -136,20 +136,37 @@ export async function getUserSummary(userEmail, startDate = null, endDate = null
     const timestamp = new Date(entry.timestamp);
     const hour = timestamp.toISOString().substring(0, 13);  // YYYY-MM-DDTHH
     const day = timestamp.toISOString().substring(0, 10);   // YYYY-MM-DD
+    const model = entry.model || 'unknown';
 
     if (!summary.hourlyUsage[hour]) {
-      summary.hourlyUsage[hour] = { requests: 0, tokens: 0, cost: 0 };
+      summary.hourlyUsage[hour] = { requests: 0, tokens: 0, cost: 0, models: {} };
     }
     summary.hourlyUsage[hour].requests++;
     summary.hourlyUsage[hour].tokens += entry.total_tokens;
     summary.hourlyUsage[hour].cost += entry.total_cost;
 
+    // Track per-model usage within each hour
+    if (!summary.hourlyUsage[hour].models[model]) {
+      summary.hourlyUsage[hour].models[model] = { requests: 0, tokens: 0, cost: 0 };
+    }
+    summary.hourlyUsage[hour].models[model].requests++;
+    summary.hourlyUsage[hour].models[model].tokens += entry.total_tokens;
+    summary.hourlyUsage[hour].models[model].cost += entry.total_cost;
+
     if (!summary.dailyUsage[day]) {
-      summary.dailyUsage[day] = { requests: 0, tokens: 0, cost: 0 };
+      summary.dailyUsage[day] = { requests: 0, tokens: 0, cost: 0, models: {} };
     }
     summary.dailyUsage[day].requests++;
     summary.dailyUsage[day].tokens += entry.total_tokens;
     summary.dailyUsage[day].cost += entry.total_cost;
+
+    // Track per-model usage within each day
+    if (!summary.dailyUsage[day].models[model]) {
+      summary.dailyUsage[day].models[model] = { requests: 0, tokens: 0, cost: 0 };
+    }
+    summary.dailyUsage[day].models[model].requests++;
+    summary.dailyUsage[day].models[model].tokens += entry.total_tokens;
+    summary.dailyUsage[day].models[model].cost += entry.total_cost;
   });
 
   // Round costs for display
@@ -159,9 +176,21 @@ export async function getUserSummary(userEmail, startDate = null, endDate = null
   });
   Object.values(summary.hourlyUsage).forEach(usage => {
     usage.cost = parseFloat(usage.cost.toFixed(4));
+    // Round model costs too
+    if (usage.models) {
+      Object.values(usage.models).forEach(modelUsage => {
+        modelUsage.cost = parseFloat(modelUsage.cost.toFixed(4));
+      });
+    }
   });
   Object.values(summary.dailyUsage).forEach(usage => {
     usage.cost = parseFloat(usage.cost.toFixed(4));
+    // Round model costs too
+    if (usage.models) {
+      Object.values(usage.models).forEach(modelUsage => {
+        modelUsage.cost = parseFloat(modelUsage.cost.toFixed(4));
+      });
+    }
   });
 
   return summary;

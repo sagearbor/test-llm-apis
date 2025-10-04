@@ -115,19 +115,39 @@ function calculateCosts(inputTokens, outputTokens, deployment) {
 /**
  * Extract token counts from Azure OpenAI response
  */
-export function extractTokenCounts(response, isCodexModel = false) {
-  if (isCodexModel) {
-    // Codex models don't always return usage data
-    // Estimate based on text length (rough approximation)
-    const outputText = response.output_text || '';
+export function extractTokenCounts(response, isResponsesAPI = false) {
+  // Responses API format (gpt-5-codex, gpt-5-nano, etc.)
+  if (isResponsesAPI) {
+    // Check for usage in Responses API format
+    if (response.usage) {
+      return {
+        prompt_tokens: response.usage.input_tokens || response.usage.prompt_tokens || 0,
+        completion_tokens: response.usage.output_tokens || response.usage.completion_tokens || 0,
+        total_tokens: response.usage.total_tokens ||
+                     (response.usage.input_tokens || 0) + (response.usage.output_tokens || 0)
+      };
+    }
+
+    // Fallback: estimate from output text if usage not available
+    let outputText = '';
+    if (Array.isArray(response.output)) {
+      const messageObj = response.output.find(item => item.type === 'message');
+      if (messageObj?.content) {
+        const textContent = messageObj.content.find(c => c.type === 'output_text');
+        outputText = textContent?.text || '';
+      }
+    } else if (typeof response.output === 'string') {
+      outputText = response.output;
+    }
+
     return {
-      prompt_tokens: 0,  // Can't determine from response
+      prompt_tokens: Math.ceil(outputText.length / 4) * 0.3,  // Rough estimate
       completion_tokens: Math.ceil(outputText.length / 4),
-      total_tokens: Math.ceil(outputText.length / 4)
+      total_tokens: Math.ceil(outputText.length / 4) * 1.3
     };
   }
 
-  // Standard models return usage data
+  // Standard Chat Completions API format
   return {
     prompt_tokens: response.usage?.prompt_tokens || 0,
     completion_tokens: response.usage?.completion_tokens || 0,
