@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - DIAL</title>
+  <link rel="icon" type="image/x-icon" href="assets/dial-icon.ico">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Development Banner */
+    #devBanner {
+      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+      color: white;
+      text-align: center;
+      padding: 12px;
+      font-weight: bold;
+      font-size: 14px;
+      border-top: 3px solid #c92a2a;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.2);
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 10001;
+    }
+
+    /* Navbar */
+    #navbar {
+      background: #1976D2;
+      padding: 0;
+      position: sticky;
+      top: 0;
+      z-index: 10000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    #navbar ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+    }
+    #navbar li {
+      position: relative;
+    }
+    #navbar a {
+      display: block;
+      color: white;
+      text-decoration: none;
+      padding: 15px 20px;
+      transition: background 0.3s;
+    }
+    #navbar a:hover {
+      background: #1565C0;
+    }
+    #navbar .dropdown {
+      position: relative;
+    }
+    #navbar .dropdown-content {
+      display: none;
+      position: absolute;
+      background: white;
+      min-width: 200px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      z-index: 1;
+    }
+    #navbar .dropdown-content a {
+      color: #333;
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+    }
+    #navbar .dropdown-content a:hover {
+      background: #f5f5f5;
+    }
+    #navbar .dropdown:hover .dropdown-content {
+      display: block;
+    }
+
+    /* Password Modal */
+    #passwordModal {
+      display: none;
+      position: fixed;
+      z-index: 10002;
+      left: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.6);
+    }
+    #passwordModal .modal-content {
+      background-color: #fefefe;
+      margin: 15% auto;
+      padding: 30px;
+      border: 1px solid #888;
+      width: 90%;
+      max-width: 400px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    #passwordModal input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin: 15px 0;
+      font-size: 16px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+    }
+    #passwordModal button {
+      padding: 10px 30px;
+      margin: 5px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+    }
+    #passwordModal .submit-btn {
+      background: #4CAF50;
+      color: white;
+    }
+    #passwordModal .cancel-btn {
+      background: #f44336;
+      color: white;
+    }
+    #passwordError {
+      color: #f44336;
+      font-size: 13px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    /* Main Content */
+    #mainContent {
+      padding: 30px 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #1976D2;
+      margin-bottom: 10px;
+    }
+
+    .admin-badge {
+      display: inline-block;
+      background: #f44336;
+      color: white;
+      padding: 5px 15px;
+      border-radius: 20px;
+      font-size: 12px;
+      margin-left: 10px;
+      font-weight: bold;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid #ddd;
+      margin: 30px 0 20px 0;
+    }
+
+    .tab {
+      padding: 12px 25px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-size: 15px;
+      color: #666;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.3s;
+    }
+
+    .tab:hover {
+      color: #1976D2;
+    }
+
+    .tab.active {
+      color: #1976D2;
+      border-bottom-color: #1976D2;
+      font-weight: bold;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .data-table-container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    th {
+      background: #f5f5f5;
+      padding: 12px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: bold;
+      border-bottom: 2px solid #ddd;
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+    }
+
+    tr:hover {
+      background: #f9f9f9;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+      font-size: 16px;
+    }
+
+    .error {
+      background: #ffebee;
+      color: #c62828;
+      padding: 15px;
+      border-radius: 4px;
+      border-left: 4px solid #c62828;
+      margin: 20px 0;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin: 20px 0;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.1);
+      border-left: 4px solid #f44336;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .export-btn {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 10px 0;
+    }
+
+    .export-btn:hover {
+      background: #45a049;
+    }
+
+    .filter-controls {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+
+    .filter-controls label {
+      margin-right: 10px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .filter-controls input,
+    .filter-controls select {
+      padding: 5px 10px;
+      margin-right: 20px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Development Banner (conditionally shown) -->
+  <div id="devBanner" style="display: none;">
+    ⚠️ DEVELOPMENT MODE - DO NOT USE WITH REAL DATA ⚠️
+  </div>
+
+  <!-- Navigation Bar -->
+  <nav id="navbar">
+    <ul>
+      <li style="padding: 8px 15px;">
+        <img src="assets/dial-icon.ico" alt="DIAL" width="32" height="32" style="vertical-align: middle;">
+      </li>
+      <li><a href="/">Chat</a></li>
+      <li class="dropdown">
+        <a href="#">Dashboard ▼</a>
+        <div class="dropdown-content">
+          <a href="/dashboard-analytics.html">Analytics Dashboard</a>
+          <a href="#" id="adminDashboardLink">Admin Dashboard</a>
+        </div>
+      </li>
+      <li><a href="/about.html">About</a></li>
+    </ul>
+  </nav>
+
+  <!-- Password Modal -->
+  <div id="passwordModal">
+    <div class="modal-content">
+      <h2>🔒 Admin Access Required</h2>
+      <p>Please enter the admin password:</p>
+      <input type="password" id="adminPasswordInput" placeholder="Enter password">
+      <div id="passwordError">Incorrect password. Please try again.</div>
+      <div>
+        <button class="submit-btn" id="passwordSubmit">Submit</button>
+        <button class="cancel-btn" id="passwordCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mainContent">
+    <h1>🔧 Admin Dashboard<span class="admin-badge">ADMIN ONLY</span></h1>
+    <p style="color: #666;">System administration and access logs</p>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="overview">Overview</button>
+      <button class="tab" data-tab="access-logs">Access Logs</button>
+      <button class="tab" data-tab="usage-logs">Usage Logs</button>
+    </div>
+
+    <!-- Overview Tab -->
+    <div class="tab-content active" id="overview-content">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Page Visits</div>
+          <div class="stat-value" id="totalVisits">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Unique Visitors</div>
+          <div class="stat-value" id="uniqueVisitors">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Queries</div>
+          <div class="stat-value" id="totalQueries">-</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">System Status</div>
+          <div class="stat-value" style="font-size: 20px; color: #4CAF50;">🟢 Online</div>
+        </div>
+      </div>
+
+      <div class="data-table-container">
+        <h3>Page Visit Summary</h3>
+        <table id="pageVisitSummary">
+          <thead>
+            <tr>
+              <th>Page</th>
+              <th>Total Visits</th>
+              <th>Last Visit</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="3" class="loading">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Access Logs Tab -->
+    <div class="tab-content" id="access-logs-content">
+      <div class="filter-controls">
+        <label>Filter by Page:</label>
+        <select id="pageFilter">
+          <option value="">All Pages</option>
+          <option value="chat">Chat</option>
+          <option value="dashboard-analytics">Analytics Dashboard</option>
+          <option value="dashboard-admin">Admin Dashboard</option>
+          <option value="about">About</option>
+        </select>
+
+        <button class="export-btn" onclick="exportAccessLogs()">📥 Export CSV</button>
+      </div>
+
+      <div class="data-table-container">
+        <h3>Access Logs</h3>
+        <div id="accessLogsLoading" class="loading">Loading access logs...</div>
+        <table id="accessLogsTable" style="display: none;">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Page</th>
+              <th>User Agent</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Usage Logs Tab -->
+    <div class="tab-content" id="usage-logs-content">
+      <div class="data-table-container">
+        <h3>User LLM Usage</h3>
+        <div id="userUsageLoading" class="loading">Loading user usage data...</div>
+        <div id="userUsageContent" style="display: none;">
+          <table id="userUsageTable">
+            <thead>
+              <tr>
+                <th>User Email</th>
+                <th>Total Queries</th>
+                <th>Total Tokens</th>
+                <th>Total Cost</th>
+                <th>Last Activity</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+          <p style="margin-top: 20px; font-size: 13px; color: #666;">
+            <strong>Note:</strong> With OAuth disabled, all usage is tracked as "anonymous"
+          </p>
+        </div>
+        <button class="export-btn" onclick="window.location.href='/dashboard-analytics.html'" style="margin-top: 20px;">
+          📊 View Detailed Analytics Dashboard
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let accessLogsData = [];
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        // Remove active from all tabs and contents
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+        // Add active to clicked tab and corresponding content
+        tab.classList.add('active');
+        const tabName = tab.dataset.tab;
+        document.getElementById(`${tabName}-content`).classList.add('active');
+      });
+    });
+
+    // Password modal logic (keeps navbar functional on this page)
+    const adminDashboardLink = document.getElementById('adminDashboardLink');
+    const passwordModal = document.getElementById('passwordModal');
+    const passwordInput = document.getElementById('adminPasswordInput');
+    const passwordSubmit = document.getElementById('passwordSubmit');
+    const passwordCancel = document.getElementById('passwordCancel');
+    const passwordError = document.getElementById('passwordError');
+
+    if (adminDashboardLink && passwordModal) {
+      adminDashboardLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Already on admin page, just close any modal
+      });
+    }
+
+    // Check environment and show dev banner
+    async function checkEnvironment() {
+      try {
+        const response = await fetch('/api/environment');
+        const data = await response.json();
+
+        const devBanner = document.getElementById('devBanner');
+        if (data.isDevelopment && devBanner) {
+          devBanner.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Error checking environment:', error);
+      }
+    }
+
+    // Log page visit
+    async function logPageVisit() {
+      try {
+        await fetch('/api/log-visit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            page: 'dashboard-admin',
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent
+          })
+        });
+      } catch (error) {
+        console.error('Error logging page visit:', error);
+      }
+    }
+
+    // Load access logs
+    async function loadAccessLogs() {
+      try {
+        const response = await fetch('/api/access-logs');
+        if (!response.ok) {
+          throw new Error('Failed to fetch access logs');
+        }
+
+        const data = await response.json();
+        accessLogsData = data.logs;
+
+        // Update overview stats
+        updateOverviewStats(data.logs);
+
+        // Render access logs table
+        renderAccessLogs(data.logs);
+
+        document.getElementById('accessLogsLoading').style.display = 'none';
+        document.getElementById('accessLogsTable').style.display = 'table';
+      } catch (error) {
+        console.error('Error loading access logs:', error);
+        document.getElementById('accessLogsLoading').innerHTML = `
+          <div class="error">Error loading access logs: ${error.message}</div>
+        `;
+      }
+    }
+
+    function updateOverviewStats(logs) {
+      document.getElementById('totalVisits').textContent = logs.length.toLocaleString();
+
+      // Count unique visitors (based on user agent as simple proxy)
+      const uniqueAgents = new Set(logs.map(log => log.userAgent));
+      document.getElementById('uniqueVisitors').textContent = uniqueAgents.size.toLocaleString();
+
+      // Page visit summary
+      const pageStats = {};
+      logs.forEach(log => {
+        if (!pageStats[log.page]) {
+          pageStats[log.page] = { count: 0, lastVisit: log.timestamp };
+        }
+        pageStats[log.page].count++;
+        if (new Date(log.timestamp) > new Date(pageStats[log.page].lastVisit)) {
+          pageStats[log.page].lastVisit = log.timestamp;
+        }
+      });
+
+      const tbody = document.querySelector('#pageVisitSummary tbody');
+      tbody.innerHTML = Object.entries(pageStats)
+        .map(([page, stats]) => `
+          <tr>
+            <td><strong>${page}</strong></td>
+            <td>${stats.count}</td>
+            <td>${new Date(stats.lastVisit).toLocaleString()}</td>
+          </tr>
+        `)
+        .join('');
+    }
+
+    function renderAccessLogs(logs) {
+      const tbody = document.querySelector('#accessLogsTable tbody');
+
+      if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #666;">No access logs found</td></tr>';
+        return;
+      }
+
+      // Sort by timestamp descending (most recent first)
+      const sortedLogs = [...logs].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      tbody.innerHTML = sortedLogs
+        .slice(0, 100) // Show last 100 entries
+        .map(log => `
+          <tr>
+            <td>${new Date(log.timestamp).toLocaleString()}</td>
+            <td><strong>${log.page}</strong></td>
+            <td style="font-size: 11px; max-width: 400px; overflow: hidden; text-overflow: ellipsis;">${log.userAgent}</td>
+          </tr>
+        `)
+        .join('');
+    }
+
+    // Page filter
+    document.getElementById('pageFilter')?.addEventListener('change', (e) => {
+      const filterPage = e.target.value;
+      const filteredLogs = filterPage
+        ? accessLogsData.filter(log => log.page === filterPage)
+        : accessLogsData;
+      renderAccessLogs(filteredLogs);
+    });
+
+    // Export access logs
+    function exportAccessLogs() {
+      const csv = 'Timestamp,Page,UserAgent\n' +
+        accessLogsData
+          .map(log => `${log.timestamp},${log.page},"${log.userAgent}"`)
+          .join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `access-logs-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }
+
+    // Load user usage data
+    async function loadUserUsage() {
+      try {
+        // Try to fetch all users summary (admin endpoint)
+        const response = await fetch('/api/usage/summary');
+        if (!response.ok) {
+          throw new Error('Failed to fetch usage data');
+        }
+
+        const data = await response.json();
+
+        document.getElementById('userUsageLoading').style.display = 'none';
+        document.getElementById('userUsageContent').style.display = 'block';
+
+        // Render user usage table
+        renderUserUsage(data);
+      } catch (error) {
+        console.error('Error loading user usage:', error);
+        document.getElementById('userUsageLoading').innerHTML = `
+          <div class="error">
+            Unable to load usage data. ${error.message}<br>
+            <small>Make sure you have sent at least one chat message.</small>
+          </div>
+        `;
+      }
+    }
+
+    function renderUserUsage(summaryData) {
+      const tbody = document.querySelector('#userUsageTable tbody');
+
+      const totalQueries = summaryData.totalRequests || summaryData.total_queries || 0;
+      const totalTokens = summaryData.totalTokens || summaryData.total_tokens || 0;
+      const totalCost = summaryData.totalCost || summaryData.total_cost || 0;
+
+      // For now, show aggregate data (when OAuth is off, everything is "anonymous")
+      // In future with OAuth, this would show per-user breakdown
+      if (totalQueries === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; color: #666;">
+              No usage data available yet. Send some chat messages to see usage statistics.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      // Show anonymous user aggregate (when OAuth is enabled, this would loop through users)
+      tbody.innerHTML = `
+        <tr>
+          <td><strong>anonymous</strong></td>
+          <td>${totalQueries}</td>
+          <td>${totalTokens.toLocaleString()}</td>
+          <td>$${totalCost.toFixed(4)}</td>
+          <td>Recently</td>
+        </tr>
+      `;
+
+      // Update total queries stat on overview tab
+      document.getElementById('totalQueries').textContent = totalQueries;
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      checkEnvironment();
+      logPageVisit();
+      loadAccessLogs();
+      loadUserUsage();
+    });
+  </script>
+</body>
+</html>
