@@ -23,13 +23,13 @@ import session from 'express-session';
 import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs/promises';
-import { modelConfig } from './config.js';
-import { getAuthUrl, getTokenFromCode, requireAuth, isOAuthEnabled } from './auth.js';
-import { upload, rateLimitUpload, getUploadDir } from './upload-middleware.js';
-import { processFile } from './file-processor.js';
-import { startCleanupService, stopCleanupService, cleanupSession } from './cleanup-service.js';
-import { applySecurityMiddleware, getEnvironmentConfig } from './security-config.js';
-import { recordUsage, extractTokenCounts, checkRateLimits } from './usage-tracker.js';
+import { modelConfig } from './src/config.js';
+import { getAuthUrl, getTokenFromCode, requireAuth, isOAuthEnabled } from './src/auth.js';
+import { upload, rateLimitUpload, getUploadDir } from './src/upload-middleware.js';
+import { processFile } from './src/file-processor.js';
+import { startCleanupService, stopCleanupService, cleanupSession } from './src/cleanup-service.js';
+import { applySecurityMiddleware, getEnvironmentConfig } from './src/security-config.js';
+import { recordUsage, extractTokenCounts, checkRateLimits } from './src/usage-tracker.js';
 import {
   getUserSummary,
   getHourlyUsage,
@@ -37,7 +37,7 @@ import {
   getCostByModel,
   getAllUsersSummary,
   isAdmin
-} from './usage-analytics.js';
+} from './src/usage-analytics.js';
 
 dotenv.config();
 
@@ -69,7 +69,7 @@ app.use(session({
 }));
 
 // Disable caching for HTML files in development
-app.use(express.static('.', {
+app.use(express.static('public', {
   setHeaders: (res, path) => {
     if (path.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -914,7 +914,7 @@ app.post('/api/log-visit', express.json(), async (req, res) => {
     const { page, timestamp, userAgent } = req.body;
     const logLine = `${timestamp},${page},${userAgent}\n`;
 
-    const logFile = path.join(process.cwd(), 'access-log.csv');
+    const logFile = path.join(process.cwd(), 'logs/access-log.csv');
 
     // Create file with header if it doesn't exist
     try {
@@ -935,7 +935,7 @@ app.post('/api/log-visit', express.json(), async (req, res) => {
 // Get access logs (for admin dashboard)
 app.get('/api/access-logs', async (req, res) => {
   try {
-    const logFile = path.join(process.cwd(), 'access-log.csv');
+    const logFile = path.join(process.cwd(), 'logs/access-log.csv');
 
     // Check if file exists
     try {
