@@ -49,7 +49,11 @@ applySecurityMiddleware(app);
 
 // Apply environment banner middleware right after security (before everything else)
 console.log('[DEBUG] env-banner-node loaded:', typeof envBanner);
-app.use(envBanner({ position: 'bottom' })); // Banner at bottom to avoid navbar collision
+app.use(envBanner({
+  position: 'bottom',
+  text: "DON'T USE REAL DATA - Dev Environment",
+  showHost: false
+})); // Banner at bottom to avoid navbar collision
 console.log('[DEBUG] env-banner-node middleware applied');
 
 // Then add body parser
