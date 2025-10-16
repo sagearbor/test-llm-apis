@@ -78,7 +78,7 @@ Edit `.env` with your values:
 npm start
 ```
 
-Then open http://localhost:3000 in your browser.
+Then open http://localhost:3003 in your browser (default port is 3003, configurable via `PORT` in `.env`).
 
 ## Model Configuration
 
@@ -97,7 +97,7 @@ The application includes a `/health` endpoint that pings each configured model w
 
 **Access health check:**
 - Web UI: Status indicators appear at the top of the page
-- API: `GET http://localhost:3000/health`
+- API: `GET http://localhost:3003/health`
 
 **Status indicators:**
 - 🟢 Green: Model is accessible and responding
@@ -169,11 +169,34 @@ Endpoint: `/openai/deployments/{deployment}/responses`
 
 ### Project Structure
 
-* `index.html` – The front-end chat UI with health status indicators
-* `server.js` – The Node.js Express backend with chat and health endpoints
-* `.env.example` – Environment variables template with documentation
-* `.gitignore` – Prevents committing secrets and unnecessary files
-* `README.md` – This guide
+```
+├── server.js              # Express backend (main entry point)
+├── package.json          # Node.js dependencies
+├── .env                  # Environment configuration (not committed)
+│
+├── public/               # Frontend files (served statically)
+│   ├── index.html       # Main chat interface
+│   ├── app.js           # Client-side JavaScript
+│   ├── about.html       # About page
+│   ├── dashboard-*.html # Analytics dashboards
+│   └── assets/          # Icons and images
+│
+├── src/                  # Backend modules
+│   ├── auth.js          # OAuth authentication
+│   ├── config.js        # Model configuration
+│   ├── usage-tracker.js # Usage analytics
+│   └── ...              # Other backend modules
+│
+├── docs/                 # Documentation
+│   ├── CLAUDE.md        # Project-specific instructions
+│   ├── ARCHITECTURE_DECISIONS.md
+│   ├── SECURITY.md
+│   └── ...
+│
+├── scripts/              # Deployment scripts
+├── data/                 # Runtime data (CSV logs)
+└── logs/                 # Application logs
+```
 
 ### Adding New Models
 
@@ -182,20 +205,23 @@ Endpoint: `/openai/deployments/{deployment}/responses`
    NEW_MODEL_DEPLOYMENT_NAME=your-deployment-name
    ```
 
-2. Update `deploymentMap` in `server.js`:
+2. Update model configuration in `src/config.js`:
    ```javascript
-   const deploymentMap = {
+   models: [
      // ... existing models
-     'new_model_api': process.env.NEW_MODEL_DEPLOYMENT_NAME
-   };
+     {
+       key: 'new_model_api',
+       displayName: 'New Model Name',
+       defaultDeployment: 'your-deployment-name',
+       envVar: 'NEW_MODEL_DEPLOYMENT_NAME'
+     }
+   ]
    ```
 
-3. Add option to `index.html`:
+3. Add option to `public/index.html`:
    ```html
    <option value="new_model_api">New Model Name</option>
    ```
-
-4. Update `modelNames` object in `index.html` for health status display
 
 ## Cost Optimization
 
