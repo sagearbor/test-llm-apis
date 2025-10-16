@@ -1,1 +1,6 @@
 timestamp,user_email,user_id,model,deployment,input_tokens,output_tokens,total_tokens,input_cost,output_cost,total_cost,session_id,file_attached,success,error_message
+2025-10-16T03:11:10.188Z,anonymous,anonymous,smallest_llm_api,gpt-5-nano,18,309,327,0.000018,0.000618,0.000636,J8-pTqyiXcW9aCudlEhwHRm-zQ_AhDcL,false,true,
+2025-10-16T03:11:27.632Z,anonymous,anonymous,smallest_llm_api,gpt-5-nano,330,461,791,0.00033,0.000922,0.001252,J8-pTqyiXcW9aCudlEhwHRm-zQ_AhDcL,false,true,
+2025-10-16T03:12:08.182Z,anonymous,anonymous,coding_llm_api,gpt-5-codex,807,42,849,0.001614,0.000336,0.00195,J8-pTqyiXcW9aCudlEhwHRm-zQ_AhDcL,false,true,
+2025-10-16T03:12:28.073Z,anonymous,anonymous,coding_llm_api,gpt-5-codex,859,65,924,0.001718,0.00052,0.002238,J8-pTqyiXcW9aCudlEhwHRm-zQ_AhDcL,false,true,
+2025-10-16T04:28:07.644Z,anonymous,anonymous,smallest_llm_api,gpt-5-nano,937,77,1014,0.000937,0.000154,0.001091,J8-pTqyiXcW9aCudlEhwHRm-zQ_AhDcL,false,true,
