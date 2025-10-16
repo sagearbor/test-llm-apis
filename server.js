@@ -23,6 +23,7 @@ import session from 'express-session';
 import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs/promises';
+import envBanner from 'env-banner-node';
 import { modelConfig } from './src/config.js';
 import { getAuthUrl, getTokenFromCode, requireAuth, isOAuthEnabled } from './src/auth.js';
 import { upload, rateLimitUpload, getUploadDir } from './src/upload-middleware.js';
@@ -45,6 +46,11 @@ const app = express();
 
 // Apply comprehensive security middleware FIRST
 applySecurityMiddleware(app);
+
+// Apply environment banner middleware right after security (before everything else)
+console.log('[DEBUG] env-banner-node loaded:', typeof envBanner);
+app.use(envBanner({ position: 'bottom' })); // Banner at bottom to avoid navbar collision
+console.log('[DEBUG] env-banner-node middleware applied');
 
 // Then add body parser
 app.use(express.json({ limit: '10mb' })); // Limit payload size
@@ -901,12 +907,6 @@ app.get('/api/admin/usage', requireAuth, async (req, res) => {
 // ============================================================================
 // Environment & Navigation Features
 // ============================================================================
-
-// Get environment status (development vs production)
-app.get('/api/environment', (req, res) => {
-  const isDevelopment = process.env.NODE_ENV !== 'production';
-  res.json({ isDevelopment });
-});
 
 // Log page visits
 app.post('/api/log-visit', express.json(), async (req, res) => {

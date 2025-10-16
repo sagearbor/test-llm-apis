@@ -1007,9 +1007,8 @@ Best for: ${metadata.specialties || 'N/A'}`;
       }
 
       // ============================================================================
-      // Development Banner & Environment Check
+      // Environment banner is now handled server-side by env-banner-node middleware
       // ============================================================================
-      checkEnvironment();
 
       // ============================================================================
       // Admin Dashboard Password Protection
@@ -1069,23 +1068,6 @@ Best for: ${metadata.specialties || 'N/A'}`;
     // ============================================================================
     // Helper Functions for New Features
     // ============================================================================
-
-    /**
-     * Check environment and show dev banner if in development mode
-     */
-    async function checkEnvironment() {
-      try {
-        const response = await fetch('/api/environment');
-        const data = await response.json();
-
-        const devBanner = document.getElementById('devBanner');
-        if (data.isDevelopment && devBanner) {
-          devBanner.style.display = 'block';
-        }
-      } catch (error) {
-        console.error('Error checking environment:', error);
-      }
-    }
 
     /**
      * Log page visit to server

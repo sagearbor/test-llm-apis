@@ -24,23 +24,6 @@
       padding: 0;
     }
 
-    /* Development Banner */
-    #devBanner {
-      background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
-      color: white;
-      text-align: center;
-      padding: 12px;
-      font-weight: bold;
-      font-size: 14px;
-      border-top: 3px solid #c92a2a;
-      box-shadow: 0 -2px 8px rgba(0,0,0,0.2);
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      z-index: 10001;
-    }
-
     /* Navbar */
     #navbar {
       background: #1976D2;
@@ -544,10 +527,7 @@
   </style>
 </head>
 <body>
-  <!-- Development Banner (conditionally shown) -->
-  <div id="devBanner" style="display: none;">
-    ⚠️ DEVELOPMENT MODE - DO NOT USE WITH REAL DATA ⚠️
-  </div>
+  <!-- Environment banner is injected server-side by env-banner-node middleware -->
 
   <!-- Navigation Bar -->
   <nav id="navbar">
