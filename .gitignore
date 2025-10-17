@@ -74,6 +74,9 @@ web_modules/
 # Each machine should have its own local settings
 .claude/
 
+# Application runtime data (rate limits, usage tracking)
+src/data/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
