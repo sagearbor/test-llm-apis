@@ -37,14 +37,22 @@ export function getCorsConfig() {
 
       if (!origin) return callback(null, false);
 
+      // CRITICAL: In production, ALLOWED_ORIGINS must be configured
+      if (allowedOrigins.length === 0 && !isDevelopment) {
+        console.error('CRITICAL: ALLOWED_ORIGINS not set in production!');
+        console.error('Set ALLOWED_ORIGINS environment variable to your frontend URL(s)');
+        return callback(new Error('CORS not configured - set ALLOWED_ORIGINS environment variable'));
+      }
+
       if (allowedOrigins.length === 0) {
-        // If no origins configured, allow same-origin only
+        // Development with no origins - reject for safety
         return callback(null, false);
       }
 
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
+        console.warn(`CORS policy violation: Origin ${origin} not in allowed list:`, allowedOrigins);
         callback(new Error(`CORS policy violation: Origin ${origin} not allowed`));
       }
     },

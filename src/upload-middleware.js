@@ -12,6 +12,7 @@
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import sanitize from 'sanitize-filename';
 import crypto from 'crypto';
 
@@ -64,8 +65,9 @@ const BLOCKED_EXTENSIONS = new Set([
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Create session-specific directory
+    // To find temp dir at runtime: node -p "require('os').tmpdir()"
     const sessionId = req.session?.id || 'anonymous';
-    const uploadDir = path.join('/tmp', 'llm-uploads', sessionId);
+    const uploadDir = path.join(os.tmpdir(), 'llm-uploads', sessionId);
 
     // Ensure directory exists
     fs.mkdirSync(uploadDir, { recursive: true });
@@ -168,7 +170,7 @@ export function rateLimitUpload(req, res, next) {
  * Get upload directory for session
  */
 export function getUploadDir(sessionId) {
-  return path.join('/tmp', 'llm-uploads', sessionId || 'anonymous');
+  return path.join(os.tmpdir(), 'llm-uploads', sessionId || 'anonymous');
 }
 
 /**

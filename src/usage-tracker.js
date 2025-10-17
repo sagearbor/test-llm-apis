@@ -179,6 +179,14 @@ export async function recordUsage(data) {
 
   // Format CSV row
   const timestamp = new Date().toISOString();
+
+  // Sanitize error message to prevent CSV injection attacks
+  // Remove all CSV special chars: commas, quotes, newlines, and formula injection chars (=, +, -, @)
+  const sanitizedError = errorMessage
+    .replace(/[,\r\n"=+\-@]/g, ' ')  // Replace dangerous chars with space
+    .substring(0, 200)  // Limit length to prevent log bloat
+    .trim();
+
   const row = [
     timestamp,
     userEmail || 'anonymous',
@@ -194,7 +202,7 @@ export async function recordUsage(data) {
     sessionId || '',
     fileAttached,
     success,
-    errorMessage.replace(/,/g, ';')  // Replace commas to avoid CSV issues
+    sanitizedError
   ].join(',') + '\n';
 
   try {

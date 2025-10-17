@@ -11,6 +11,7 @@
 
 import AdmZip from 'adm-zip';
 import path from 'path';
+import os from 'os';
 import { isAllowedExtension } from './upload-middleware.js';
 
 // Security limits
@@ -76,7 +77,8 @@ export async function processZipFile(zipPath, nestingLevel = 0) {
         }
 
         // Extract nested ZIP to temp location and process
-        const tempPath = `/tmp/nested-${Date.now()}.zip`;
+        // To find temp dir at runtime: node -p "require('os').tmpdir()"
+        const tempPath = path.join(os.tmpdir(), `nested-${Date.now()}.zip`);
         const fs = await import('fs/promises');
         await fs.writeFile(tempPath, entry.getData());
 

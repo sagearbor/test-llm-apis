@@ -18,6 +18,7 @@
 
 import express from 'express';
 import fetch from 'node-fetch';
+import https from 'https';
 import dotenv from 'dotenv';
 import session from 'express-session';
 import crypto from 'crypto';
@@ -41,6 +42,12 @@ import {
 } from './src/usage-analytics.js';
 
 dotenv.config();
+
+// Create HTTPS agent with explicit SSL certificate validation
+// This ensures all HTTPS connections validate certificates properly
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: true  // Always validate SSL certificates (dev + production)
+});
 
 const app = express();
 
@@ -195,7 +202,8 @@ Summary:`;
           model: deploymentName,
           input: summaryPrompt,
           max_output_tokens: 500
-        })
+        }),
+        agent: url.startsWith('https:') ? httpsAgent : undefined
       });
 
       const data = await response.json();
@@ -440,7 +448,8 @@ app.get('/health', requireAuth, async (req, res) => {
           'Content-Type': 'application/json',
           'api-key': apiKey
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        agent: url.startsWith('https:') ? httpsAgent : undefined
       });
 
       if (response.ok) {
@@ -705,7 +714,8 @@ app.post('/chat', requireAuth, async (req, res) => {
         'Content-Type': 'application/json',
         'api-key': apiKey
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(requestBody),
+      agent: url.startsWith('https:') ? httpsAgent : undefined
     });
 
     const data = await response.json();
