@@ -34,7 +34,7 @@ This application implements **enterprise-grade security** with multiple layers o
 
 ## Deployment Options
 
-- **🐳 Docker (Recommended)**: See [docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMENT.md)
+- **🐳 Docker (Recommended)**: See [docs/DOCKER.md](docs/DOCKER.md)
   - Local testing with Docker
   - VM deployment with Docker Compose
   - Azure Container Instances
@@ -79,6 +79,40 @@ npm start
 ```
 
 Then open http://localhost:3003 in your browser (default port is 3003, configurable via `PORT` in `.env`).
+
+## Docker Quick Start
+
+### Using Docker Compose (Recommended)
+
+```bash
+# 1. Configure environment
+cp .env.example .env
+# Edit .env with your Azure OpenAI credentials
+
+# 2. Build image (--no-cache forces fresh build, ignoring cached layers)
+docker-compose build --no-cache
+
+# 3. Start container
+docker-compose up -d
+
+# 4. View logs
+docker-compose logs -f
+
+# 5. Stop
+docker-compose down
+```
+
+**Important**: If you update code and the container shows old version, rebuild:
+
+```bash
+docker-compose down
+docker-compose build --no-cache  # Forces fresh build, no cached layers
+docker-compose up -d
+```
+
+Open http://localhost:3003 (hard refresh browser: `Ctrl+Shift+R`)
+
+For complete Docker documentation, see [docs/DOCKER.md](docs/DOCKER.md)
 
 ## Model Configuration
 
