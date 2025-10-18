@@ -52,9 +52,9 @@ USER nodejs
 # Expose port
 EXPOSE 3003
 
-# Health check
+# Health check (includes x-forwarded-proto header for production HTTPS redirect)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3003/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "require('http').get({hostname:'localhost',port:3003,path:'/health',headers:{'x-forwarded-proto':'https'}}, (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start the application
 CMD ["node", "server.js"]
