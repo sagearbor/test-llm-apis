@@ -13,6 +13,11 @@ services:
     env_file:
       - .env
 
+    # Override for local development (disable HTTPS redirect)
+    # For production deployment, remove this or set NODE_ENV=production
+    environment:
+      - NODE_ENV=development
+
     # Volume mounts for persistent data
     volumes:
       # Runtime data (usage tracking, rate limits) - MUST persist across restarts
