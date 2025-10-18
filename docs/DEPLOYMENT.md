@@ -10,11 +10,13 @@ This guide outlines all steps required to deploy this application from developme
 2. [Environment Configuration](#environment-configuration)
 3. [Security Configuration](#security-configuration)
 4. [CORS Setup](#cors-setup)
-5. [Azure Deployment](#azure-deployment)
-6. [Docker Deployment](#docker-deployment)
-7. [Post-Deployment Verification](#post-deployment-verification)
-8. [Monitoring & Maintenance](#monitoring--maintenance)
-9. [Rollback Procedures](#rollback-procedures)
+5. [Deployment Options](#deployment-options)
+   - [Unix VM with NGINX](#unix-vm-with-nginx)
+   - [Azure Web Apps](#azure-web-apps)
+   - [Docker](#docker)
+6. [Post-Deployment Verification](#post-deployment-verification)
+7. [Monitoring & Maintenance](#monitoring--maintenance)
+8. [Rollback Procedures](#rollback-procedures)
 
 ---
 
@@ -298,9 +300,52 @@ If deploying to Azure Web Apps, you may also need to configure CORS in Azure Por
 
 ---
 
-## Azure Deployment
+## Deployment Options
 
-### Option 1: Azure Web Apps (Recommended)
+### Unix VM with NGINX
+
+**For deploying to a Unix/Linux VM behind NGINX reverse proxy (like Duke DCRI deployment).**
+
+This is a comprehensive guide for:
+- Checking existing NGINX configuration
+- Installing dependencies
+- Deploying as a systemd service
+- Configuring NGINX with SSL/HTTPS
+- Troubleshooting common issues
+
+**👉 See complete guide: [Unix VM Deployment Guide](./deployment_to_vm.md)**
+
+**Quick summary:**
+```bash
+# 1. Check environment
+nginx -v
+node -v
+sudo systemctl status nginx
+
+# 2. Deploy app
+git clone <repo> /opt/llm-test-app
+cd /opt/llm-test-app
+npm ci --only=production
+
+# 3. Create .env with production values
+nano .env
+
+# 4. Set up systemd service
+sudo nano /etc/systemd/system/llm-test-app.service
+sudo systemctl enable llm-test-app
+sudo systemctl start llm-test-app
+
+# 5. Configure NGINX location block
+sudo nano /etc/nginx/sites-available/default
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+For detailed step-by-step instructions, NGINX checks, and troubleshooting, see the [full VM deployment guide](./deployment_to_vm.md).
+
+---
+
+### Azure Web Apps
 
 #### Prerequisites
 - Azure subscription
@@ -373,9 +418,11 @@ az webapp deployment source config-zip \
 
 ---
 
-## Docker Deployment
+### Docker
 
-### Building the Image
+For detailed Docker documentation including local development, see [Docker Guide](./DOCKER.md).
+
+#### Building the Image
 
 ```bash
 # Build production image
